@@ -128,6 +128,16 @@ def register():
         if User.query.filter_by(email=data['email'].lower()).first():
             return jsonify({'error': 'Email already registered'}), 409
 
+             
+        # Handle role safely
+        if data.get('role'):
+            try:
+                role = UserRole(data['role'].lower())
+            except ValueError:
+                return jsonify({'error': f"Invalid role: {data['role']}"}), 400
+        else:
+            role = UserRole.STUDENT
+
         # Save temporarily in session
         session['pending_user'] = {
             'email': data['email'].lower(),
@@ -135,7 +145,8 @@ def register():
             'last_name': data['last_name'],
             'password': data['password'],
             'phone': data['phone'],
-            'bio': data.get('bio')
+            'bio': data.get('bio'),
+            'role':role
         }
         
         # Send OTP via Twilio
@@ -150,7 +161,7 @@ def register():
         return jsonify({
             'message': f'OTP sent to {data["phone"]}',
             'status': 'OTP_SENT',
-            'next': '/verify-otp'
+            'next': 'api/v1/auth/verify-otp'
         }), 200
 
     except Exception as e:
@@ -188,11 +199,13 @@ def verify_otp():
             last_name=pending_user['last_name'],
             phone=pending_user['phone'],
             bio=pending_user.get('bio'),
-            role=UserRole.STUDENT
+            role=pending_user.get('role')
         )
         user.set_password(pending_user['password'])
         db.session.add(user)
         db.session.commit()
+        email_service.send_welcome_email(user)
+
 
         # Clear session
         session.pop('pending_user', None)

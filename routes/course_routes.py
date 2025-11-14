@@ -233,6 +233,8 @@ def create_course():
 
     if status == CourseStatus.PUBLISHED:
         is_active = True
+    else:
+        is_active = False
 
         
     # Create course
