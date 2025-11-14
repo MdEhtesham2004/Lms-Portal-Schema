@@ -9,14 +9,21 @@ import os
 import uuid
 from datetime import datetime
 from io import BytesIO
+from dotenv import load_dotenv
+from services.file_service import FileService
+load_dotenv()
+file_service = FileService()
 
 class CertificateService:
     def __init__(self):
-        self.upload_folder = os.environ.get('UPLOAD_FOLDER', 'uploads')
+        self.upload_folder = os.environ.get('UPLOAD_FOLDER')
         self.certificates_folder = os.path.join(self.upload_folder, 'certificates')
         
         # Create certificates directory if it doesn't exist
-        os.makedirs(self.certificates_folder, exist_ok=True)
+        # os.makedirs(self.certificates_folder, exist_ok=True)
+        
+        file_service.create_directory('certificates')
+        
     
     def generate_certificate_pdf(self, user, course, certificate):
         """Generate a PDF certificate for course completion"""

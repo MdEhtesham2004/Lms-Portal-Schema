@@ -9,7 +9,7 @@ import cv2
 
 class FileService:
     def __init__(self):
-        self.upload_folder = os.environ.get('UPLOAD_FOLDER', 'uploads')
+        self.upload_folder = os.environ.get('UPLOAD_FOLDER')
         self.max_file_size = 16 * 1024 * 1024  # 16MB
         
         # Create upload directory if it doesn't exist
@@ -276,3 +276,6 @@ class FileService:
             return round(duration_seconds / 60, 2)
         return None
         
+
+
+    

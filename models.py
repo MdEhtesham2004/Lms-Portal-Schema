@@ -77,14 +77,14 @@ class MasterCategory(db.Model):
     # one-to-many relationship to subcategories
     subcategories = db.relationship("SubCategory", backref="master_category", cascade="all, delete-orphan")
 
-    def to_dict(self,include_subcategories=False):
+    def to_dict(self,include_subcategories=False,include_courses=False):
         response = {
             "id": self.id,
             "name": self.name,
             # "subcategories": [sub.to_dict() for sub in self.subcategories]
         }
         if include_subcategories:
-            response['subcategories']=[sub.to_dict() for sub in self.subcategories]
+            response['subcategories']=[sub.to_dict(include_courses=include_courses) for sub in self.subcategories]
         
         return response
     
@@ -128,6 +128,33 @@ class CoursePrerequisitesCourses(db.Model):
         backref="prerequisite_for"
     )
 
+     # ✅ Proper to_dict method (with optional nested data)
+    def to_dict(self, include_course_details=True):
+        data = {
+            "id": self.id,
+            "course_id": self.course_id,
+            "prerequisite_course_id": self.prerequisite_course_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+        if include_course_details and self.prerequisite_course:
+            data["prerequisite_course"] = {
+                "id": self.prerequisite_course.id,
+                "title": self.prerequisite_course.title,
+                "difficulty_level": self.prerequisite_course.difficulty_level,
+                "status": (
+                    self.prerequisite_course.status.value
+                    if self.prerequisite_course.status else None
+                ),
+                "instructor_name": f"{self.prerequisite_course.instructor.first_name} {self.prerequisite_course.instructor.last_name}"
+                if self.prerequisite_course.instructor else None,
+                "price": float(self.prerequisite_course.price)
+                if self.prerequisite_course.price is not None else None,
+            }
+
+        return data
+
+
 
 class Course(db.Model):
     __tablename__ = 'courses'
@@ -160,8 +187,8 @@ class Course(db.Model):
     payments = db.relationship('Payment', backref='course', lazy='dynamic')
     certificates = db.relationship('Certificate', backref='course', lazy='dynamic')
     live_sessions = db.relationship('LiveSession', backref='course', lazy='dynamic')
-   
-    prerequisites_courses = db.relationship(
+    
+    prerequisites_courses = db.relationship(  
         "CoursePrerequisitesCourses",
         foreign_keys=[CoursePrerequisitesCourses.course_id],
         backref="course",
@@ -169,7 +196,7 @@ class Course(db.Model):
         lazy="dynamic"
     )
 
-    def to_dict(self, include_modules=False):
+    def to_dict(self, include_modules=False,include_lessons=False,include_resources=False):
         data = {
             'id': self.id,
             'title': self.title,
@@ -207,7 +234,7 @@ class Course(db.Model):
   
         
         if include_modules:
-            data['modules'] = [module.to_dict(include_lessons=True) for module in self.modules]
+            data['modules'] = [module.to_dict(include_lessons=include_lessons,include_resources=include_resources) for module in self.modules]
         
         return data
 
@@ -227,7 +254,7 @@ class CourseModule(db.Model):
     # Relationships
     lessons = db.relationship('Lesson', backref='module', lazy='dynamic', cascade='all, delete-orphan')
     
-    def to_dict(self, include_lessons=False):
+    def to_dict(self, include_lessons=False,include_resources=False):
         data = {
             'id': self.id,
             'course_id': self.course_id,
@@ -239,7 +266,7 @@ class CourseModule(db.Model):
         }
         
         if include_lessons:
-            data['lessons'] = [lesson.to_dict() for lesson in self.lessons.order_by(Lesson.order)]
+            data['lessons'] = [lesson.to_dict(include_resources=include_resources) for lesson in self.lessons.order_by(Lesson.order)]
         
         return data
 
@@ -272,8 +299,10 @@ class Lesson(db.Model):
             'order': self.order,
             'is_preview': self.is_preview,
             'created_at': self.created_at.isoformat(),
-            'resources': [resource.to_dict() for resource in self.resources]
         }
+        if include_resources:
+            data['resources']= [resource.to_dict() for resource in self.resources]
+        
         return data 
 
 class LessonResource(db.Model):

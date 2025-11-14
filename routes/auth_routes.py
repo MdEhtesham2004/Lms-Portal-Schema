@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify,session
 from flask_jwt_extended import jwt_required, create_access_token, create_refresh_token, get_jwt_identity, get_jwt,set_access_cookies,set_refresh_cookies
 from werkzeug.security import check_password_hash
 from app import db
@@ -10,6 +10,13 @@ from werkzeug.utils import secure_filename
 import requests 
 from config import Config
 from services.email_service import EmailService
+from flask import jsonify, request
+from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
+from werkzeug.utils import secure_filename
+import os
+from services.sms_service import SmsService
+
+sms_service = SmsService()
 
 email_service = EmailService()
 
@@ -20,12 +27,10 @@ ALLOWED_EXTENSIONS_PROFILES = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS_PROFILES
-from flask import jsonify, request
-from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
-from werkzeug.utils import secure_filename
-import os
 
-""" Register """
+
+
+""" Register 
 @auth_bp.route('/register', methods=['POST'])
 def register():
     try:
@@ -59,15 +64,6 @@ def register():
         else:
             role = UserRole.STUDENT
         
-        # (Optional) File upload handling — commented
-        # file = request.files.get('profile_pic')
-        # profile_path = None
-        # if file and allowed_file(file.filename):
-        #     filename = secure_filename(file.filename)
-        #     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-        #     profile_path = os.path.join(UPLOAD_FOLDER,"instructors", filename)
-        #     file.save(profile_path)
-        
         # Create new user
         user = User(
             email=data['email'].lower(),
@@ -78,9 +74,12 @@ def register():
             bio=data.get('bio')
         )
         user.set_password(data['password'])
+
         
         db.session.add(user)
         db.session.commit()
+        email_service.send_welcome_email(user)
+
         
         # Create tokens
         access_token = create_access_token(identity=str(user.id))
@@ -106,6 +105,118 @@ def register():
         db.session.rollback()
         # Always return JSON response on error
         return jsonify({'error': str(e)}), 500
+"""
+
+
+@auth_bp.route('/register', methods=['POST'])
+def register():
+    try:
+        data = request.get_json()
+
+        required_fields = ['email', 'password', 'first_name', 'last_name', 'phone']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'{field} is required'}), 400
+
+        # Validations
+        if not validate_email(data['email']):
+            return jsonify({'error': 'Invalid email format'}), 400
+
+        if not validate_password(data['password']):
+            return jsonify({'error': 'Weak password'}), 400
+
+        if User.query.filter_by(email=data['email'].lower()).first():
+            return jsonify({'error': 'Email already registered'}), 409
+
+        # Save temporarily in session
+        session['pending_user'] = {
+            'email': data['email'].lower(),
+            'first_name': data['first_name'],
+            'last_name': data['last_name'],
+            'password': data['password'],
+            'phone': data['phone'],
+            'bio': data.get('bio')
+        }
+        
+        # Send OTP via Twilio
+        from services.sms_service import SmsService
+        sms = SmsService()
+        otp_status = sms.send_otp(data['phone'])
+
+        if otp_status != "pending":
+            session.pop('pending_user', None)  # clear if failed
+            return jsonify({'error': 'Failed to send OTP'}), 500
+
+        return jsonify({
+            'message': f'OTP sent to {data["phone"]}',
+            'status': 'OTP_SENT',
+            'next': '/verify-otp'
+        }), 200
+
+    except Exception as e:
+        session.pop('pending_user', None)
+        return jsonify({'error': str(e)}), 500
+
+@auth_bp.route('/verify-otp', methods=['POST'])
+def verify_otp():
+    try:
+        print("verify otp route hit--")
+        data = request.get_json()
+        otp = data.get('otp')
+        pending_user = session.get('pending_user')
+        print("pending user from session :",pending_user)
+        phone = pending_user.get('phone')
+
+        if not phone or not otp:
+            return jsonify({'error': 'Phone and OTP required'}), 400
+
+
+        if not pending_user:
+            return jsonify({'error': 'Session expired or no user data found'}), 400
+
+        # Verify OTP with Twilio
+      
+        result = sms_service.verify_otp(phone, otp)
+
+        if result != 'approved':
+            return jsonify({'error': 'Invalid o`r expired OTP'}), 400
+
+        # OTP verified → create user
+        user = User(
+            email=pending_user['email'],
+            first_name=pending_user['first_name'],
+            last_name=pending_user['last_name'],
+            phone=pending_user['phone'],
+            bio=pending_user.get('bio'),
+            role=UserRole.STUDENT
+        )
+        user.set_password(pending_user['password'])
+        db.session.add(user)
+        db.session.commit()
+
+        # Clear session
+        session.pop('pending_user', None)
+
+        # Tokens
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
+
+        response = jsonify({
+            'message': 'Registration successful!',
+            'user': user.to_dict(),
+            'access_token': access_token,
+            'refresh_token': refresh_token
+        })
+        set_access_cookies(response, access_token)
+        set_refresh_cookies(response, refresh_token)
+        return response, 201
+
+    except Exception as e:
+        db.session.rollback()
+        session.pop('pending_user', None)
+        return jsonify({'error': str(e)}), 500
+
+
 
 """  Login  """
 @auth_bp.route('/login', methods=['POST'])
@@ -139,24 +250,24 @@ def login():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-"""  Refresh Token  """
+    
+""" Refresh Token """
 @auth_bp.route('/refresh', methods=['POST'])
 @jwt_required(refresh=True)
 def refresh():
     try:
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        user = User.query.get(int(current_user_id))  # convert back to int
         
         if not user or not user.is_active:
             return jsonify({'error': 'User not found or deactivated'}), 404
         
-        new_token = create_access_token(identity=current_user_id)
+        new_token = create_access_token(identity=str(user.id))  # must be string
         
         return jsonify({
             'access_token': new_token
         }), 200
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -5,6 +5,7 @@ from models import Notification, User
 from auth import get_current_user, admin_required
 from services.email_service import EmailService
 
+email_service = EmailService()
 notification_bp = Blueprint('notifications', __name__)
 
 # get notifications 
@@ -310,3 +311,15 @@ def update_notification_settings():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@notification_bp.route("/test-notification")
+def test_notification():
+    email = "kiran@aimtechnologies.in"
+    subject = "testing flask mail service from backend "
+    message = " welcome to AI First Academy "
+    response = email_service.send_email(recipient=email,subject=subject,body=message)
+
+    return {
+        "status":response
+    }

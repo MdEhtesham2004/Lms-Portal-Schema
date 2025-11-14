@@ -10,8 +10,8 @@ live_session_bp = Blueprint('live_sessions', __name__)
 
 # get live sessions 
 """ Get Live Sessions    """
-@live_session_bp.route('/', methods=['GET'])
-@jwt_required()
+@live_session_bp.route('/get-live-sessions', methods=['GET'])
+@instructor_required
 def get_live_sessions():
     try:
         user = get_current_user()
@@ -68,7 +68,7 @@ def get_live_sessions():
 
 # create live sessions
 """  Create live sessions and demo here       """ 
-@live_session_bp.route('/', methods=['POST'])
+@live_session_bp.route('/create-live-sessions', methods=['POST'])
 @instructor_required
 def create_live_session():
     try:
@@ -146,7 +146,7 @@ def create_live_session():
 
 # get perticular session
 """ get perticular session  """ 
-@live_session_bp.route('/<int:session_id>', methods=['GET'])
+@live_session_bp.route('get-live-sessions/<int:session_id>', methods=['GET'])
 @jwt_required()
 def get_live_session(session_id):
     try:
@@ -187,7 +187,7 @@ def get_live_session(session_id):
 
 # update perticular session
 """ update perticular session """ 
-@live_session_bp.route('/<int:session_id>', methods=['PUT'])
+@live_session_bp.route('/update-live-sessions/<int:session_id>', methods=['PUT'])
 @instructor_required
 def update_live_session(session_id):
     try:
@@ -246,7 +246,7 @@ def update_live_session(session_id):
     
 # delete session
 """ Delete perticular session """
-@live_session_bp.route('/<int:session_id>', methods=['DELETE'])
+@live_session_bp.route('/delete-live-sessions/<int:session_id>', methods=['DELETE'])
 @instructor_required
 def delete_live_session(session_id):
     try:
@@ -278,7 +278,7 @@ def delete_live_session(session_id):
         return jsonify({'error': str(e)}), 500
 
 """ Get Upcomming Courses   """
-@live_session_bp.route('/upcoming', methods=['GET'])
+@live_session_bp.route('get-live-courses/upcoming', methods=['GET'])
 @jwt_required()
 def get_upcoming_sessions():
     try:
@@ -319,7 +319,7 @@ def get_upcoming_sessions():
         return jsonify({'error': str(e)}), 500
 
 """ Get live sessions of perticular course   """
-@live_session_bp.route('/course/<int:course_id>', methods=['GET'])
+@live_session_bp.route('/get-live-sessions/course/<int:course_id>', methods=['GET'])
 @jwt_required()
 def get_course_sessions(course_id):
     try:
@@ -359,7 +359,7 @@ def get_course_sessions(course_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@live_session_bp.route('/<int:session_id>/join', methods=['GET'])
+@live_session_bp.route('join-live-sessions/<int:session_id>/join', methods=['GET'])
 @jwt_required()
 def join_session(session_id):
     try:

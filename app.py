@@ -28,6 +28,7 @@ cors = CORS()
 
 FRONTEND_URL_STUDENTS = os.environ.get("FRONTEND_URL_STUDENTS")
 FRONTEND_URL_ADMIN = os.environ.get("FRONTEND_URL_ADMIN")
+BASE_URL = "/api/v1/"
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -35,6 +36,13 @@ def create_app(config_class=Config):
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
     app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # Example: 500 MB limit
+
+    app.config['MAIL_SERVER'] = os.environ.get("MAIL_SERVER")
+    app.config['MAIL_PORT'] = 587
+    app.config['MAIL_USE_TLS'] = True
+    app.config['MAIL_USERNAME'] = os.environ.get("MAIL_USERNAME")
+    app.config['MAIL_PASSWORD'] =  os.environ.get("MAIL_PASSWORD")# APP Password only
+    app.config['MAIL_DEFAULT_SENDER'] = os.environ.get("MAIL_DEFAULT_SENDER")
 
     
     # Initialize extensions
@@ -76,9 +84,29 @@ def create_app(config_class=Config):
     from routes.helper_routes import helper_bp
     from routes.prerequisites import prereq_bp
 
+    from routes.master_routes import master_bp
+    from routes.subcategory_routes import subcategory_bp
+    from routes.modules_routes import modules_bp
+    from routes.lessons_routes import lessons_bp
+    from routes.lessons_resources_routes import lessons_resource_bp
+    from routes.enrollments_routes import enrollments_bp
+    from routes.public_routes import public_bp
+
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
     app.register_blueprint(user_bp, url_prefix='/api/v1/users')
+
+    app.register_blueprint(master_bp, url_prefix='/api/v1/mastercategories')
+    app.register_blueprint(subcategory_bp, url_prefix='/api/v1/subcategories')
     app.register_blueprint(course_bp, url_prefix='/api/v1/courses')
+    app.register_blueprint(modules_bp, url_prefix='/api/v1/modules')
+    app.register_blueprint(lessons_bp, url_prefix='/api/v1/lessons')
+    app.register_blueprint(lessons_resource_bp, url_prefix='/api/v1/lesson-resources')
+    app.register_blueprint(public_bp, url_prefix="/api/v1/public")
+    app.register_blueprint(prereq_bp,url_prefix="/api/v1/prerequisites")
+    
+    
+    app.register_blueprint(enrollments_bp, url_prefix='/api/v1/enrollments')
+    
     app.register_blueprint(admin_bp, url_prefix='/api/v1/admin')
     app.register_blueprint(payment_bp, url_prefix='/api/v1/payments')
     app.register_blueprint(file_bp, url_prefix='/api/v1/files')
@@ -86,7 +114,7 @@ def create_app(config_class=Config):
     app.register_blueprint(certificate_bp, url_prefix='/api/v1/certificates')
     app.register_blueprint(live_session_bp, url_prefix='/api/v1/live-sessions')
     app.register_blueprint(helper_bp,url_prefix='/api/v1/helper/')
-    app.register_blueprint(prereq_bp,url_prefix='/api/v1/')
+    
     # Create tables
     with app.app_context():
         import models  # noqa: F401

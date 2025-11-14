@@ -7,6 +7,16 @@ from services.certificate_service import CertificateService
 import uuid
 
 certificate_bp = Blueprint('certificates', __name__)
+UPLOAD_FOLDER = "Certificates"
+
+
+
+
+
+
+
+
+
 
 """ Get all certifications  """
 @certificate_bp.route('/', methods=['GET'])

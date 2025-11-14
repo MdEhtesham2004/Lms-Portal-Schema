@@ -6,8 +6,17 @@ from models import LessonResource, Lesson, Course, Enrollment
 from auth import get_current_user, instructor_required
 from services.file_service import FileService
 import os
+file_service = FileService()
 
 file_bp = Blueprint('files', __name__)
+
+@file_bp.route("/")
+def file():
+    return {
+        "page":"file route",
+        "status":"🆗"
+    }
+
 
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mp3', 'wav', 'doc', 'docx', 'ppt', 'pptx'}
 
@@ -47,7 +56,6 @@ def upload_file():
             return jsonify({'error': 'Unauthorized to upload files for this lesson'}), 403
         
         if file and allowed_file(file.filename):
-            file_service = FileService()
             file_path, file_size = file_service.save_file(file, 'lesson_resources')
             
             # Create lesson resource record
@@ -204,7 +212,7 @@ def upload_profile_picture():
         return jsonify({'error': str(e)}), 500
 
 # getting lesson resources 
-@file_bp.route('/lesson-resources/<int:lesson_id>', methods=['GET'])
+@file_bp.route('/lesson-resources/<int:lesson_id>', methods=['POST'])
 @jwt_required()
 def get_lesson_resources(lesson_id):
     try:
@@ -281,3 +289,9 @@ def delete_resource(resource_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+@file_bp.route('/download/<path:file_path>', methods=['GET'])
+def download(file_path):
+    return file_service.send_file(file_path)
+

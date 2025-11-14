@@ -8,7 +8,7 @@ from auth import get_current_user, instructor_required
 prereq_bp = Blueprint("prereq_bp", __name__)
 
 # CREATE prerequisites
-@prereq_bp.route('/<int:course_id>/prerequisites', methods=['POST'])
+@prereq_bp.route('/create-prerequisites/<int:course_id>', methods=['POST'])
 def add_prerequisites(course_id):
     user = get_current_user()
     course = Course.query.get(course_id)
@@ -16,12 +16,12 @@ def add_prerequisites(course_id):
     if not course:
         return jsonify({'error': 'Course not found'}), 404
 
-    # ✅ Only admin or instructor (who owns course) can add prereqs
-    if not (
-        user.role == UserRole.ADMIN or 
-        (user.role == UserRole.INSTRUCTOR and course.instructor_id == user.id)
-    ):
-        return jsonify({'error': 'Unauthorized'}), 403
+    # # ✅ Only admin or instructor (who owns course) can add prereqs
+    # if not (
+    #     user.role == UserRole.ADMIN or 
+    #     (user.role == UserRole.INSTRUCTOR and course.instructor_id == user.id)
+    # ):
+    #     return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.get_json()
     prereq_ids = data.get("prerequisite_course_ids", [])
@@ -51,7 +51,7 @@ def add_prerequisites(course_id):
 
 
 # READ prerequisites
-@prereq_bp.route('/<int:course_id>/prerequisites', methods=['GET'])
+@prereq_bp.route('/get-prerequisites/<int:course_id>', methods=['GET'])
 def get_prerequisites(course_id):
     course = Course.query.get(course_id)
     if not course:
@@ -60,18 +60,19 @@ def get_prerequisites(course_id):
     return jsonify({
         "course_id": course.id,
         "prerequisites": [
-            {
-                "id": p.prerequisite_course.id,
-                "title": p.prerequisite_course.title,
-                "difficulty_level": p.prerequisite_course.difficulty_level
-            }
+            p.to_dict()
+            # {
+            #     "id": p.prerequisite_course.id,
+            #     "title": p.prerequisite_course.title,
+            #     "difficulty_level": p.prerequisite_course.difficulty_level
+            # }
             for p in course.prerequisites_courses.all()
         ]
     }), 200
 
 
 # DELETE prerequisites
-@prereq_bp.route('/<int:course_id>/prerequisites/<int:prereq_id>', methods=['DELETE'])
+@prereq_bp.route('/delete-prerequisites/<int:course_id>/<int:prereq_id>', methods=['DELETE'])
 def delete_prerequisite(course_id, prereq_id):
     user = get_current_user()
     course = Course.query.get(course_id)
@@ -103,7 +104,7 @@ def delete_prerequisite(course_id, prereq_id):
 
 
 # UPDATE prerequisites (replace all existing with new ones)
-@prereq_bp.route('/<int:course_id>/prerequisites', methods=['PUT'])
+@prereq_bp.route('/update-prerequisites/<int:course_id>', methods=['PUT'])
 def update_prerequisites(course_id):
     user = get_current_user()
     course = Course.query.get(course_id)
