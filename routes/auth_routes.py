@@ -178,15 +178,7 @@ def verify_otp():
         print("pending user from session :",pending_user)
         phone = pending_user.get('phone')
 
-        # Handle role safely
-        if pending_user.get('role'):
-            try:
-                role = UserRole(data['role'].lower())
-            except ValueError:
-                return jsonify({'error': f"Invalid role: {data['role']}"}), 400
-        else:
-            role = UserRole.STUDENT
-
+        
 
         if not phone or not otp:
             return jsonify({'error': 'Phone and OTP required'}), 400
@@ -201,6 +193,8 @@ def verify_otp():
 
         if result != 'approved':
             return jsonify({'error': 'Invalid o`r expired OTP'}), 400
+        
+        role = pending_user.get('role', 'student')
 
         # OTP verified → create user
         user = User(
@@ -209,7 +203,8 @@ def verify_otp():
             last_name=pending_user['last_name'],
             phone=pending_user['phone'],
             bio=pending_user.get('bio'),
-            role=str(role)
+            role=UserRole(role.lower())
+
         )
         user.set_password(pending_user['password'])
         db.session.add(user)
