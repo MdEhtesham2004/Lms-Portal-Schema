@@ -54,7 +54,7 @@ def create_lesson(module_id):
         # Get next order number
         max_order = db.session.query(db.func.max(Lesson.order)).filter_by(module_id=module_id).scalar() or 0
 
-
+        
         if file_service.validate_file_type(filename=video_file.filename,allowed_extensions=ALLOWED_VIDEO_EXTENSIONS_LESSONS):
             relative_path, file_size = file_service.save_file(file=video_file,subfolder=UPLOAD_FOLDER)
         else:
