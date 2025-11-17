@@ -17,3 +17,4 @@ opencv-python-headless>=4.6.0,<4.10.0
 sendgrid==6.11.0
 beautifulsoup4==4.12.3
 twilio==9.8.1
+razorpay==1.4.2
