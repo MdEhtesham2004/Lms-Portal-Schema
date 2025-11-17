@@ -43,6 +43,11 @@ def create_app(config_class=Config):
     app.config['MAIL_USERNAME'] = os.environ.get("MAIL_USERNAME")
     app.config['MAIL_PASSWORD'] =  os.environ.get("MAIL_PASSWORD")# APP Password only
     app.config['MAIL_DEFAULT_SENDER'] = os.environ.get("MAIL_DEFAULT_SENDER")
+    
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'   # Required for cross-site
+    app.config['SESSION_COOKIE_SECURE'] = True       # Required on https
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+
 
     
     # Initialize extensions

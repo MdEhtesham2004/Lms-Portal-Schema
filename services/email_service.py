@@ -94,7 +94,7 @@ class EmailService:
     
     def send_welcome_email(self, user):
         """Send welcome email to new users"""
-        subject = "Welcome Python Training Management System!"
+        subject = "Welcome to AI First Academy!"
         
         body = f"""
 Dear {user.first_name},

@@ -179,7 +179,6 @@ def verify_otp():
         phone = pending_user.get('phone')
 
         
-
         if not phone or not otp:
             return jsonify({'error': 'Phone and OTP required'}), 400
 

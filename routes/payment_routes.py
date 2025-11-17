@@ -8,6 +8,211 @@ import os
 
 payment_bp = Blueprint('payments', __name__)
 
+# @payment_bp.route('/create-order', methods=['POST'])
+# def create_order():
+#     try:
+#         data = request.get_json()
+#         user_id = data['user_id']
+#         course_id = data['course_id']
+
+#         user = User.query.get(user_id)
+#         course = Course.query.get(course_id)
+
+#         if not user or not course:
+#             return jsonify({"error": "Invalid user or course"}), 404
+
+#         payment = razorpay_service.create_order(user, course)
+
+#         return jsonify({
+#             "order_id": payment["id"],
+#             "amount": payment["amount"],
+#             "currency": payment["currency"]
+#         }), 200
+
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+# @payment_bp.route('/verify-payment', methods=['POST'])
+# def verify_payment():
+#     try:
+#         data = request.get_json()
+
+#         razorpay_payment_id = data['razorpay_payment_id']
+#         razorpay_order_id = data['razorpay_order_id']
+#         razorpay_signature = data['razorpay_signature']
+
+#         params_dict = {
+#             'razorpay_order_id': razorpay_order_id,
+#             'razorpay_payment_id': razorpay_payment_id,
+#             'razorpay_signature': razorpay_signature
+#         }
+
+#         # Razorpay signature verification
+#         result = razorpay_client.utility.verify_payment_signature(params_dict)
+
+#         if result:
+#             # Save payment to DB
+#             payment = Payment(
+#                 order_id=razorpay_order_id,
+#                 payment_id=razorpay_payment_id,
+#                 signature=razorpay_signature,
+#                 status=PaymentStatus.PENDING,
+#                 user_id=user.id,
+#                 course_id=course_id,
+#                 amount=course.price,
+#                 currency=course.currency)
+#             db.session.add(payment)
+#             db.session.commit()
+
+#             return jsonify({"status": "Payment verified"}), 200
+
+#         return jsonify({"error": "Signature mismatch"}), 400
+
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+@payment_bp.route('/create-order', methods=['POST'])
+@jwt_required()
+def create_order():
+    try:
+        user = get_current_user()
+        data = request.get_json()
+        course_id = data.get('course_id')
+
+        if not course_id:
+            return jsonify({"error": "Course ID required"}), 400
+
+        course = Course.query.get(course_id)
+        if not course:
+            return jsonify({"error": "Course not found"}), 404
+
+        # Check existing enrollment
+        if Enrollment.query.filter_by(user_id=user.id, course_id=course_id).first():
+            return jsonify({"error": "Already enrolled"}), 409
+
+        # Create pending payment row
+        payment = Payment(
+            user_id=user.id,
+            course_id=course.id,
+            amount=course.price,
+            currency=course.currency,
+            status=PaymentStatus.PENDING
+        )
+        db.session.add(payment)
+        db.session.commit()
+
+        # Create Razorpay Order
+        order = razorpay_service.create_order(user, course)
+
+        payment.razorpay_order_id = order["id"]
+        db.session.commit()
+
+        return jsonify({
+            "order_id": order["id"],
+            "amount": order["amount"],
+            "currency": order["currency"],
+            "key": os.environ.get("RAZORPAY_KEY_ID"),
+            "payment_id": payment.id
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@payment_bp.route('/verify-payment', methods=['POST'])
+@jwt_required()
+def verify_payment():
+    try:
+        data = request.get_json()
+
+        payment_id = data.get("payment_id")
+        razorpay_payment_id = data.get("razorpay_payment_id")
+        razorpay_order_id = data.get("razorpay_order_id")
+        razorpay_signature = data.get("razorpay_signature")
+
+        payment = Payment.query.get(payment_id)
+
+        if not payment or payment.razorpay_order_id != razorpay_order_id:
+            return jsonify({"error": "Invalid payment"}), 400
+
+        # Verify Razorpay signature
+        is_valid = razorpay_service.verify_signature(
+            payment_id=razorpay_payment_id,
+            order_id=razorpay_order_id,
+            signature=razorpay_signature
+        )
+
+        if not is_valid:
+            payment.status = PaymentStatus.FAILED
+            db.session.commit()
+            return jsonify({"error": "Invalid signature"}), 400
+
+        # Mark as completed
+        payment.payment_id = razorpay_payment_id
+        payment.signature = razorpay_signature
+        payment.status = PaymentStatus.COMPLETED
+
+        # Enroll user
+        enrollment = Enrollment(user_id=payment.user_id, course_id=payment.course_id)
+        db.session.add(enrollment)
+
+        db.session.commit()
+
+        return jsonify({
+            "status": "Payment verified",
+            "payment_id": payment_id
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@payment_bp.route('/razorpay-webhook', methods=['POST'])
+def razorpay_webhook():
+    try:
+        webhook_secret = os.environ.get("RAZORPAY_WEBHOOK_SECRET")
+        received_signature = request.headers.get("X-Razorpay-Signature")
+        body = request.get_data(as_text=True)
+
+        expected_signature = hmac.new(
+            webhook_secret.encode(),
+            body.encode(),
+            hashlib.sha256
+        ).hexdigest()
+
+        if expected_signature != received_signature:
+            return jsonify({"error": "Invalid webhook signature"}), 400
+
+        payload = request.json
+        event = payload.get("event")
+
+        if event == "payment.captured":
+            payment_id = payload["payload"]["payment"]["entity"]["id"]
+
+            # find our DB payment
+            payment = Payment.query.filter_by(payment_id=payment_id).first()
+            if payment:
+                payment.status = PaymentStatus.COMPLETED
+
+                # ensure enrollment
+                if not Enrollment.query.filter_by(
+                    user_id=payment.user_id,
+                    course_id=payment.course_id
+                ).first():
+                    enroll = Enrollment(
+                        user_id=payment.user_id,
+                        course_id=payment.course_id
+                    )
+                    db.session.add(enroll)
+
+                db.session.commit()
+
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @payment_bp.route('/create-checkout-session', methods=['POST'])
 @jwt_required()
 def create_checkout_session():

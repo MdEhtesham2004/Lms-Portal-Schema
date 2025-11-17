@@ -4,6 +4,7 @@ from flask import current_app
 
 
 
+
 class PaymentService:
     def __init__(self):
         stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
