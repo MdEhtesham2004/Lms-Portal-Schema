@@ -158,6 +158,9 @@ def verify_payment():
 
         db.session.commit()
 
+        invoice = razorpay_service.create_invoice(user=payment.user, course=payment.course, payment=payment)
+
+
         return jsonify({
             "status": "Payment verified",
             "payment_id": payment_id

@@ -18,8 +18,8 @@ class RazorpayPaymentService:
     def __init__(self):
         self.client = razorpay.Client(
             auth=(
-                os.environ.get('RAZORPAY_KEY_ID'),
-                os.environ.get('RAZORPAY_KEY_SECRET')
+                os.environ.get('RAZOR_PAY_KEY'),
+                os.environ.get('RAZOR_PAY_KEY_SECRET')
             )
         )
         self.webhook_secret = os.environ.get('RAZORPAY_WEBHOOK_SECRET')
@@ -75,15 +75,56 @@ class RazorpayPaymentService:
                 "razorpay_payment_id": razorpay_payment_id,
                 "razorpay_signature": razorpay_signature
             }
-            return razorpay.Utility.verify_payment_signature(params)
+            return self.client.utility.verify_payment_signature(params)
+
 
         except razorpay.errors.SignatureVerificationError:
             return False
 
         except Exception as e:
             raise Exception(f"Razorpay error (verify_payment): {str(e)}")
+        
+    def create_invoice(self, user, course, payment):
+        try:
+            invoice_data = {
+                "type": "invoice",
+                "description": f"Invoice for Course: {course.title}",
+                "customer": {
+                    "name": f"{user.first_name} {user.last_name}".strip(),
+                    "contact": user.phone,        # must be 10-digit number
+                    "email": user.email,
+                    "billing_address": {
+                        "line1": "N/A",
+                        "line2": "",
+                        "zipcode": "000000",
+                        "city": "N/A",
+                        "state": "N/A",
+                        "country": "IN"
+                    }
+                },
+                "line_items": [
+                    {
+                        "name": course.title,
+                        "description": f"Enrollment for {course.title}",
+                        "amount": int(float(course.price) * 100),  # in paise
+                        "currency": course.currency.upper(),
+                        "quantity": 1
+                    }
+                ],
+                "sms_notify": True,
+                "email_notify": True,
+                "currency": course.currency.upper()
+            }
 
-    # ---------------------------------------------------------
+            invoice = self.client.invoice.create(invoice_data)
+
+            return invoice
+
+        except Exception as e:
+            raise Exception(f"Razorpay error (create_invoice): {str(e)}")
+
+
+        # ---------------------------------------------------------
     # 4️⃣ Refund
     # ---------------------------------------------------------
     def create_refund(self, payment_id, amount=None):
@@ -188,6 +229,78 @@ class RazorpayPaymentService:
     # ---------------------------------------------------------
     def get_balance(self):
         try:
-            return self.client.misc.fetch_all_balances()
+            return self.client.fetch_balances()
+
+            # return self.client.misc.fetch_all_balances()
         except Exception as e:
             raise Exception(f"Razorpay error (get_balance): {str(e)}")
+
+class DummyCourse:
+    def __init__(self, id, price, currency,title):
+        self.id = id
+        self.price = price
+        self.currency = currency
+        self.title = title 
+
+class DummyUser:
+    id = 1
+    first_name = "Mohammed"
+    last_name = "Ehtesham"
+    email = "mohammed.ehtesham@aimtechnologies.in"
+    phone = "+919700404029"
+
+user = DummyUser()
+
+class DummyPayment:
+    id = 55
+    user_id = 1
+    course_id = 10
+    amount = 999.00
+    currency = "INR"
+    razorpay_order_id = "order_RgjIs0PicHsmBY"
+    payment_id = "pay_RgjJToXEqCTHeQ"
+    signature = "6c5af8d14a44c1f772be2d39294b513f8d0282dc33686b092a671b4bf54bc7ba"
+
+course = DummyCourse(
+    id=1,
+    title = "Python Mastery Bootcamp",
+    price=499.99,   # ₹499.99
+    currency="INR"
+)
+
+
+payment = DummyPayment()
+
+razorpay_service = RazorpayPaymentService()
+
+try:
+    payment_id = "pay_RgjJToXEqCTHeQ"
+    order_id = "order_RgjIs0PicHsmBY"
+    signature = "6c5af8d14a44c1f772be2d39294b513f8d0282dc33686b092a671b4bf54bc7ba"
+    # order = razorpay_service.create_order(course, user)
+    # payment = razorpay_service.verify_payment(razorpay_order_id="order_RgjIs0PicHsmBY",razorpay_payment_id="pay_RgjJToXEqCTHeQ",
+                                    # razorpay_signature="6c5af8d14a44c1f772be2d39294b513f8d0282dc33686b092a671b4bf54bc7ba")
+    # print(payment)
+
+    # response = razorpay_service.get_payment(payment_id=payment_id)
+    # response = razorpay_service.list_payments()
+    # response = razorpay_service.get_balance()
+    # response = razorpay_service.get_order(order_id=order_id)
+    response = razorpay_service.create_invoice(user, course, payment)
+
+
+
+
+
+
+
+
+
+
+
+    print(response)
+except Exception as e:
+    print("Error:", e)
+
+
+
