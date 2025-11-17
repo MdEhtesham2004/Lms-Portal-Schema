@@ -286,7 +286,8 @@ try:
     # response = razorpay_service.list_payments()
     # response = razorpay_service.get_balance()
     # response = razorpay_service.get_order(order_id=order_id)
-    response = razorpay_service.create_invoice(user, course, payment)
+    # response = razorpay_service.create_invoice(user, course, payment)
+    # response = razorpay_service.create_refund(payment_id=payment_id)
 
 
 
@@ -298,7 +299,7 @@ try:
 
 
 
-    print(response)
+    # print(response)
 except Exception as e:
     print("Error:", e)
 

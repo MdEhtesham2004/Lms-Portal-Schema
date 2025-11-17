@@ -4,7 +4,10 @@ from app import db
 from models import Payment, Course, Enrollment, PaymentStatus, User
 from auth import get_current_user
 from services.payment_service import PaymentService
+from services.razor_payment_service import RazorpayPaymentService
 import os
+
+razorpay_service =  RazorpayPaymentService()
 
 payment_bp = Blueprint('payments', __name__)
 
@@ -136,10 +139,10 @@ def verify_payment():
             return jsonify({"error": "Invalid payment"}), 400
 
         # Verify Razorpay signature
-        is_valid = razorpay_service.verify_signature(
-            payment_id=razorpay_payment_id,
-            order_id=razorpay_order_id,
-            signature=razorpay_signature
+        is_valid = razorpay_service.verify_payment(
+            razorpay_payment_id=razorpay_payment_id,
+            razorpay_order_id=razorpay_order_id,
+            razorpay_signature=razorpay_signature
         )
 
         if not is_valid:
@@ -163,7 +166,8 @@ def verify_payment():
 
         return jsonify({
             "status": "Payment verified",
-            "payment_id": payment_id
+            "payment_id": payment_id,
+            "invoice":invoice
         }), 200
 
     except Exception as e:
