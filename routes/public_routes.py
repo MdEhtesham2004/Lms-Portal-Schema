@@ -114,4 +114,64 @@ def get_course(course_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@public_bp.route('/get-courses', methods=['POST'])
+def get_courses_all():
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', '10')  # keep as string to check for 'all'
+        search = request.args.get('search', '', type=str).strip()
+
+        # Base query
+        query = Course.query
+
+        # 🔍 Add search filter
+        if search:
+            from app import db 
+            like_pattern = f"%{search}%"
+            query = query.filter(
+                db.or_(
+                    Course.title.ilike(like_pattern),
+                    Course.description.ilike(like_pattern),
+                    Course.short_description.ilike(like_pattern)
+                )
+            )
+
+        query = query.order_by(Course.created_at.desc())
+
+        # If per_page == 'all', return all records without pagination
+        if per_page == 'all':
+            courses = query.all()
+            return jsonify({
+                "courses": [course.to_dict() for course in courses],
+                "pagination": {
+                    "page": 1,
+                    "per_page": "all",
+                    "total_pages": 1,
+                    "total_items": len(courses),
+                    "has_next": False,
+                    "has_prev": False
+                }
+            }), 200
+
+        # Convert per_page to integer for normal pagination
+        per_page = int(per_page)
+
+        # Normal paginated result
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        courses = pagination.items
+
+        return jsonify({
+            "courses": [course.to_dict() for course in courses],
+            "pagination": {
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "total_pages": pagination.pages,
+                "total_items": pagination.total,
+                "has_next": pagination.has_next,
+                "has_prev": pagination.has_prev
+            }
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 

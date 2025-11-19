@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from models import User, Enrollment, Course, LessonProgress, Certificate
+from models import User, Enrollment, Course, LessonProgress, Certificate,Payment,PaymentStatus
 from auth import get_current_user
 from utils.validators import validate_email
 from services.email_service import EmailService
@@ -103,8 +103,11 @@ def get_dashboard():
         # Get active enrollments
         enrollments = Enrollment.query.filter_by(user_id=user.id, is_active=True).all()
         
+        
         # Get certificates
         certificates = Certificate.query.filter_by(user_id=user.id).all()
+
+        payments = Payment.query.filter_by(user_id=user.id).all()
         
         # Calculate statistics
         total_courses = len(enrollments)
@@ -131,7 +134,8 @@ def get_dashboard():
                 'total_certificates': total_certificates
             },
             'recent_activity': recent_activity,
-            'certificates': [cert.to_dict() for cert in certificates]
+            'certificates': [cert.to_dict() for cert in certificates],
+            'payments':[payment.to_dict() for payment in payments]
         }), 200
         
     except Exception as e:

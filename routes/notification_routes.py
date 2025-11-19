@@ -10,7 +10,7 @@ notification_bp = Blueprint('notifications', __name__)
 
 # get notifications 
 """ get notifications   """
-@notification_bp.route('/', methods=['GET'])
+@notification_bp.route('/get-notifications', methods=['GET'])
 @jwt_required()
 def get_notifications():
     try:
@@ -318,7 +318,7 @@ def test_notification():
     email = "kiran@aimtechnologies.in"
     subject = "testing flask mail service from backend "
     message = " welcome to AI First Academy "
-    response = email_service.send_email(recipient=email,subject=subject,body=message)
+    response = email_service.send_email(to_email=email,subject=subject,body=message)
 
     return {
         "status":response

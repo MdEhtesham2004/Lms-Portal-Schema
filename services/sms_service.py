@@ -52,17 +52,3 @@ class SmsService:
 
 
     
-
-# # Example route
- 
-# if __name__ == "__main__":
-#     sms = SmsService()
-#     phone = "+916300232040"  # Must match the number used in send_otp
-
-# #     # sms.send_otp(phone)
-
-# #     # otp_code = input("Enter the OTP you received: ")
-# #     # sms.check_otp(phone, otp_code)
-
-
-#     sms.send_whatsapp_notification(to_number=phone,message_body="Hello From Aim Technologies, \n this is test message")

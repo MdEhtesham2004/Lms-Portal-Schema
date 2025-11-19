@@ -27,7 +27,7 @@ def courses():
 
 # UPLOAD_FOLDER = 'static/uploads/thumbnails/'  # Or wherever you want
 UPLOAD_FOLDER = "thumbnails"   # Or wherever you want
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif','svg'}
 
 
 """Get courses such as archived, draft, published """
@@ -294,7 +294,11 @@ def update_course(course_id):
         else:
             data = request.form
             file = request.files.get('thumbnail')
-
+        
+        print("content_type:",request.content_type)
+        print("data:",data)
+        print("file:",file)
+        
         # ✅ Update only if provided (no "title is required" check here)
         if data.get('title'):
             course.title = data['title']
@@ -333,11 +337,13 @@ def update_course(course_id):
                 db.session.add(
                     CoursePrerequisitesCourses(course_id=course.id, prerequisite_course_id=pid)
                 )
+        print("Uploaded file:", file.filename)
+        print("Valid:", file_service.validate_file_type(file.filename, allowed_extensions=ALLOWED_EXTENSIONS))
 
         # ✅ Handle thumbnail upload
         if file and file_service.validate_file_type(file.filename,allowed_extensions=ALLOWED_EXTENSIONS):
             if file_service.delete_file(course.thumbnail):
-                relative_path, file_size = file_service.save_file(file)
+                relative_path, file_size = file_service.save_file(file,subfolder=UPLOAD_FOLDER)
                 course.thumbnail = relative_path 
 
 

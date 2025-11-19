@@ -10,16 +10,8 @@ certificate_bp = Blueprint('certificates', __name__)
 UPLOAD_FOLDER = "Certificates"
 
 
-
-
-
-
-
-
-
-
 """ Get all certifications  """
-@certificate_bp.route('/', methods=['GET'])
+@certificate_bp.route('/get-certificate', methods=['GET'])
 @jwt_required()
 def get_user_certificates():
     try:

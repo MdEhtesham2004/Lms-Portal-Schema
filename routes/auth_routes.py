@@ -15,6 +15,9 @@ from flask_jwt_extended import create_access_token, create_refresh_token, set_ac
 from werkzeug.utils import secure_filename
 import os
 from services.sms_service import SmsService
+from utils.validators import verify_reset_token,generate_reset_token
+
+
 
 sms_service = SmsService()
 
@@ -106,7 +109,12 @@ def register():
         # Always return JSON response on error
         return jsonify({'error': str(e)}), 500
 """
-
+def send_otp(phone):
+       # Send OTP via Twilio
+    from services.sms_service import SmsService
+    sms = SmsService()
+    otp_status = sms.send_otp(phone)
+    return otp_status
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -150,9 +158,11 @@ def register():
         }
         
         # Send OTP via Twilio
-        from services.sms_service import SmsService
-        sms = SmsService()
-        otp_status = sms.send_otp(data['phone'])
+        # from services.sms_service import SmsService
+        # sms = SmsService()
+        # otp_status = sms.send_otp(data['phone'])
+
+        otp_status = send_otp(data['phone'])
 
         if otp_status != "pending":
             session.pop('pending_user', None)  # clear if failed
@@ -167,6 +177,22 @@ def register():
     except Exception as e:
         session.pop('pending_user', None)
         return jsonify({'error': str(e)}), 500
+    
+@auth_bp.route('/resend-otp',methods=['POST'])
+def resend_otp():
+    pending_user=session.get('pending_user')
+    phone = pending_user.get('phone')
+    otp_status = send_otp(phone=phone)
+
+    if otp_status != "pending":
+        session.pop('pending_user', None)  # clear if failed
+        return jsonify({'error': 'Failed to send OTP'}), 500
+
+    return jsonify({
+        'message': f'OTP sent to {phone}',
+        'status': 'OTP_SENT'
+    }), 200
+
 
 @auth_bp.route('/verify-otp', methods=['POST'])
 def verify_otp():
@@ -385,7 +411,7 @@ def verify_google_token(token):
 
 
 # Step 3: Route to handle Google login
-@auth_bp.route('/api/auth/google', methods=['POST'])
+@auth_bp.route('/google', methods=['POST'])
 def google_login():
     """
     This route receives the Google ID token from frontend,
@@ -417,3 +443,50 @@ def google_login():
     return jsonify(access_token=access_token), 200      
 
 
+
+@auth_bp.route('/send-token', methods=['POST'])
+@jwt_required()
+def send_reset_token():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    token = generate_reset_token(user)
+    return jsonify({"token": token}), 200
+
+
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    try:
+        token = request.args.get("token", None)
+        data = request.get_json()
+        new_password = data.get("password")
+
+        if not token:
+            return jsonify({"error": "Token is missing"}), 400
+
+        if not new_password:
+            return jsonify({"error": "New password is required"}), 400
+
+        # Verify token
+        email = verify_reset_token(token=token)
+
+        if not email:
+            return jsonify({"error": "Invalid or expired token"}), 400
+
+        # Get user from DB
+        user = User.query.filter_by(email=email).first()
+        print("user:",user)
+
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # Hash password
+        from werkzeug.security import generate_password_hash
+        user.password = user.set_password(new_password)
+
+        db.session.commit()
+
+        return jsonify({"message": "Password updated successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

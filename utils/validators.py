@@ -2,6 +2,11 @@ import re
 from email_validator import validate_email as email_validate, EmailNotValidError
 from datetime import datetime
 import uuid
+from itsdangerous import URLSafeTimedSerializer
+from flask import current_app
+from services.email_service import EmailService
+email_service = EmailService()
+
 
 def validate_email(email):
     """Validate email address format"""
@@ -303,3 +308,30 @@ def validate_meeting_id(meeting_id):
     # Allow alphanumeric characters, hyphens, and spaces
     pattern = r'^[a-zA-Z0-9\s\-]+$'
     return re.match(pattern, meeting_id) is not None and len(meeting_id) <= 50
+
+
+
+
+def generate_reset_token(user):
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    token =  serializer.dumps(user.email, salt="password-reset-salt")
+    email_service.send_password_reset_email(user=user,reset_token=token)
+    return token 
+
+
+def verify_reset_token(token, max_age=3600):   # valid for 1 hour
+    from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+    
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+
+    try:
+        email = serializer.loads(
+            token,
+            salt="password-reset-salt",
+            max_age=max_age
+        )
+        return email
+    except SignatureExpired:
+        return None     # token expired
+    except BadSignature:
+        return None     # tampered/invalid
