@@ -3,11 +3,15 @@ from datetime import datetime
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from dotenv import load_dotenv
-load_dotenv()
-from services.sms_service import SmsService
 # from sms_service import SmsService
+from services.sms_service import SmsService
 from bs4 import BeautifulSoup
+from models import UserRole
+load_dotenv()
+
+
 sms_service = SmsService()
+
 
 def html_to_text(html_content: str) -> str:
     """Convert HTML to plain text using BeautifulSoup"""
@@ -178,9 +182,15 @@ The AI First Academy Team</p>
 
     def send_password_reset_email(self, user, reset_token):
         """Send password reset email"""
+        if user.role == UserRole.ADMIN:
+
+            frontend_url = os.environ.get("FRONTEND_URL_ADMIN")
+        else:
+            frontend_url = os.environ.get("FRONTEND_URL_STUDENTS")
+
         subject = "Password Reset - AI First Academy"
 
-        reset_url = f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token={reset_token}"
+        reset_url = f"{frontend_url}/reset-password?token={reset_token}"
 
         body = f"""
 Dear {user.first_name},

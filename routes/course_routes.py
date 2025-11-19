@@ -341,12 +341,21 @@ def update_course(course_id):
         print("Valid:", file_service.validate_file_type(file.filename, allowed_extensions=ALLOWED_EXTENSIONS))
 
         # ✅ Handle thumbnail upload
-        if file and file_service.validate_file_type(file.filename,allowed_extensions=ALLOWED_EXTENSIONS):
-            if file_service.delete_file(course.thumbnail):
-                relative_path, file_size = file_service.save_file(file,subfolder=UPLOAD_FOLDER)
-                course.thumbnail = relative_path 
+        # if file and file_service.validate_file_type(file.filename,allowed_extensions=ALLOWED_EXTENSIONS):
+        #     if file_service.delete_file(course.thumbnail):
+        #         relative_path, file_size = file_service.save_file(file,subfolder=UPLOAD_FOLDER)
+        #         course.thumbnail = relative_path 
 
+        if file and file_service.validate_file_type(file.filename, allowed_extensions=ALLOWED_EXTENSIONS):
+            # Delete old file ONLY if it exists
+            if course.thumbnail:
+                file_service.delete_file(course.thumbnail)
 
+            # Always save the new file
+            relative_path, file_size = file_service.save_file(file, subfolder=UPLOAD_FOLDER)
+            course.thumbnail = relative_path
+
+        
         db.session.commit()
 
         return jsonify({
