@@ -132,9 +132,9 @@ def verify_payment():
         razorpay_order_id = data.get("razorpay_order_id")
         razorpay_signature = data.get("razorpay_signature")
 
-        payment = Payment.query.get(payment_id=payment_id)
+        payment = Payment.query.get(payment_id=razorpay_payment_id)
 
-        if not payment or payment.razorpay_order_id != razorpay_order_id:
+        if not payment or payment.order_id != razorpay_order_id:
             return jsonify({"error": "Invalid payment"}), 400
 
         # Verify Razorpay signature
