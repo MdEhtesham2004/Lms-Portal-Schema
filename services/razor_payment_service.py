@@ -18,8 +18,8 @@ class RazorpayPaymentService:
     def __init__(self):
         self.client = razorpay.Client(
             auth=(
-                os.environ.get('Live_API_Key'),
-                os.environ.get('Live_Key_Secret')
+                os.environ.get('RAZOR_PAY_KEY'),
+                os.environ.get('RAZOR_PAY_KEY_SECRET')
             )
         )
         self.webhook_secret = os.environ.get('RAZORPAY_WEBHOOK_SECRET')
