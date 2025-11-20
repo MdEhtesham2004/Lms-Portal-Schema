@@ -105,7 +105,7 @@ def create_order():
         db.session.commit()
 
         # Create Razorpay Order
-        order = razorpay_service.create_order(user, course)
+        order = razorpay_service.create_order(user=user, course=course)
 
         payment.razorpay_order_id = order["id"]
         db.session.commit()
@@ -114,7 +114,6 @@ def create_order():
             "order_id": order["id"],
             "amount": order["amount"],
             "currency": order["currency"],
-            "key": os.environ.get("RAZORPAY_KEY_ID"),
             "payment_id": payment.id
         }), 200
 
@@ -128,7 +127,6 @@ def verify_payment():
     try:
         data = request.get_json()
 
-        payment_id = data.get("payment_id")
         razorpay_payment_id = data.get("razorpay_payment_id")
         razorpay_order_id = data.get("razorpay_order_id")
         razorpay_signature = data.get("razorpay_signature")

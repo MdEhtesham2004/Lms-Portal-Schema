@@ -118,13 +118,19 @@ def list_lessons(lesson_id):
     try:
         lessons = Lesson.query.get(lesson_id)
 
-        return jsonify({
-            'lessons': lessons.to_dict(include_resources=True)
+        if lessons.is_preview:
+            return jsonify({
+            'lessons': lessons.to_dict(include_resources=True,include_vedio=True)
         }), 200
+        else:
+            return jsonify({
+                'lessons': lessons.to_dict(include_resources=True)
+            }), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+
 @lessons_bp.route('/update-lessons/<int:lesson_id>', methods=['PUT'])
 @instructor_required
 def update_lesson(lesson_id):
