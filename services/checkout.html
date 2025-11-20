@@ -11,12 +11,12 @@
 <script>
 var options = {
     "key": "rzp_test_ReQxX2tpYbthDK", // Enter the Key ID generated from the Dashboard
-    "amount": "500", // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
+    "amount": "4999", // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
     "currency": "INR",
     "name": "Acme Corp",
     "description": "Test Transaction",
     "image": "https://example.com/your_logo",
-    "order_id": "order_RgjIs0PicHsmBY", //This is a sample Order ID. Pass the `id` obtained in the response of Step 1
+    "order_id": "order_RhyQLTM6KfEXWs", //This is a sample Order ID. Pass the `id` obtained in the response of Step 1
     "handler": function (response){
         alert(response.razorpay_payment_id);
         alert(response.razorpay_order_id);
@@ -27,6 +27,14 @@ var options = {
         "email": "gaurav.kumar@example.com",
         "contact": "9000090000"
     },
+        "method": {
+        "upi": true,
+        "card": true,
+        "netbanking": true,
+        "wallet": true,
+        "emi": true
+    },
+
     "notes": {
         "address": "Razorpay Corporate Office"
     },

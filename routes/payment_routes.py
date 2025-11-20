@@ -127,6 +127,7 @@ def verify_payment():
     try:
         data = request.get_json()
 
+        payment_id =  data.get("payment_id")
         razorpay_payment_id = data.get("razorpay_payment_id")
         razorpay_order_id = data.get("razorpay_order_id")
         razorpay_signature = data.get("razorpay_signature")
