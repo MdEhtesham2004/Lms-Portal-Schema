@@ -337,8 +337,8 @@ def update_course(course_id):
                 db.session.add(
                     CoursePrerequisitesCourses(course_id=course.id, prerequisite_course_id=pid)
                 )
-        print("Uploaded file:", file.filename)
-        print("Valid:", file_service.validate_file_type(file.filename, allowed_extensions=ALLOWED_EXTENSIONS))
+        # print("Uploaded file:", file.filename)
+        # print("Valid:", file_service.validate_file_type(file.filename, allowed_extensions=ALLOWED_EXTENSIONS))
 
         # ✅ Handle thumbnail upload
         # if file and file_service.validate_file_type(file.filename,allowed_extensions=ALLOWED_EXTENSIONS):

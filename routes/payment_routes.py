@@ -109,7 +109,7 @@ def create_order():
         # Create Razorpay Order
         order = razorpay_service.create_order(user=user, course=course)
 
-        payment.razorpay_order_id = order["id"]
+        payment.order_id = order["id"]
         db.session.commit()
 
         return jsonify({
@@ -134,16 +134,33 @@ def verify_payment():
         razorpay_order_id = data.get("razorpay_order_id")
         razorpay_signature = data.get("razorpay_signature")
 
-        payment = Payment.query.filter_by(payment_id=razorpay_payment_id).first()
+        # payment = Payment.query.filter_by(payment_id=razorpay_payment_id).first()
 
+
+        # if not payment or payment.order_id != razorpay_order_id:
+        #     return jsonify({"error": "Invalid payment"}), 400
+
+        # Correctly retrieve the payment using its internal ID
+        payment = Payment.query.get(payment_id)
+
+        
         if not payment or payment.order_id != razorpay_order_id:
             return jsonify({"error": "Invalid payment"}), 400
+
+        
+        # print("payment: ",payment)
+        # print(payment.order_id, razorpay_order_id)
+        # print(payment.order_id==razorpay_order_id)
+
+
+        # if not payment or payment.order_id != razorpay_order_id:
+        #     return jsonify({"error": "Payment record not found or order ID mismatch"}), 400
 
         # Verify Razorpay signature
         is_valid = razorpay_service.verify_payment(
             razorpay_payment_id=razorpay_payment_id,
             razorpay_order_id=razorpay_order_id,
-            razorpay_signature=razorpay_signature
+            razorpay_signature=razorpay_signature   
         )
 
         if not is_valid:
