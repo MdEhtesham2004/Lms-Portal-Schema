@@ -79,7 +79,7 @@ def create_lesson(module_id):
         return jsonify({
             'message': 'Lesson created successfully',
             'lesson_id': lesson.id,
-            'lesson': lesson.to_dict()
+            'lesson': lesson.to_dict(include_vedio=True)
         }), 201
 
     except Exception as e:
@@ -96,6 +96,7 @@ def create_lesson(module_id):
 def list_lessons_all():
     try:
         user = get_current_user()
+        # include_vedio = request.args.get("include_vedio")
         # Role check
         if user.role != UserRole.INSTRUCTOR or user.role != UserRole.ADMIN:
             return jsonify({'error': 'Unauthorized to view lessons'}), 403
@@ -103,8 +104,10 @@ def list_lessons_all():
         lessons = Lesson.query.all()
 
         return jsonify({
-            'lessons': [lesson.to_dict() for lesson in lessons]
+            'lessons': [lesson.to_dict(include_vedio=True) for lesson in lessons]
         }), 200
+
+
 
 
     except Exception as e:
@@ -183,7 +186,7 @@ def update_lesson(lesson_id):
 
         return jsonify({
             'message': 'Lesson updated successfully',
-            'lesson': lesson.to_dict()
+            'lesson': lesson.to_dict(include_vedio=True)
         }), 200
 
     except Exception as e:
