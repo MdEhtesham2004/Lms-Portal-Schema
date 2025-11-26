@@ -288,7 +288,7 @@ class Lesson(db.Model):
     resources = db.relationship('LessonResource', backref='lesson', lazy='dynamic', cascade='all, delete-orphan')
     progress = db.relationship('LessonProgress', backref='lesson', lazy='dynamic')
     
-    def to_dict(self,include_resources=False,include_vedio=False):
+    def to_dict(self,include_resources=False,include_vedio=True):
         data =  {
             'id': self.id,
             'module_id': self.module_id,

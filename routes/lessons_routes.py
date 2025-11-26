@@ -104,7 +104,7 @@ def list_lessons_all():
         lessons = Lesson.query.all()
 
         return jsonify({
-            'lessons': [lesson.to_dict(include_vedio=True) for lesson in lessons]
+            'lessons': [lesson.to_dict() for lesson in lessons]
         }), 200
 
 
@@ -121,15 +121,14 @@ def list_lessons(lesson_id):
     try:
         lessons = Lesson.query.get(lesson_id)
 
-        if lessons.is_preview:
+        if not lessons.is_preview:
             return jsonify({
-            'lessons': lessons.to_dict(include_resources=True,include_vedio=True)
+            'lessons': lessons.to_dict(include_resources=True,include_vedio=False)
         }), 200
         else:
             return jsonify({
                 'lessons': lessons.to_dict(include_resources=True)
             }), 200
-
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
@@ -186,7 +185,7 @@ def update_lesson(lesson_id):
 
         return jsonify({
             'message': 'Lesson updated successfully',
-            'lesson': lesson.to_dict(include_vedio=True)
+            'lesson': lesson.to_dict()
         }), 200
 
     except Exception as e:
