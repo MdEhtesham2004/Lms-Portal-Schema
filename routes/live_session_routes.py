@@ -11,7 +11,6 @@ live_session_bp = Blueprint('live_sessions', __name__)
 # get live sessions 
 """ Get Live Sessions    """
 @live_session_bp.route('/get-live-sessions', methods=['GET'])
-@instructor_required
 def get_live_sessions():
     try:
         user = get_current_user()
