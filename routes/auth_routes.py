@@ -445,7 +445,6 @@ def google_login():
 
 
 @auth_bp.route('/send-token', methods=['POST'])
-@jwt_required()
 def send_reset_token():
     email = request.get_json().get("email")
     if not email:
