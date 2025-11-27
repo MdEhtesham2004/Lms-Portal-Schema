@@ -447,9 +447,14 @@ def google_login():
 @auth_bp.route('/send-token', methods=['POST'])
 @jwt_required()
 def send_reset_token():
-    user = get_current_user()
+    email = request.get_json().get("email")
+    if not email:
+        return jsonify({"error": "Email is missing"}), 400
+
+    user = User.query.filter_by(email=email).first()
     if not user:
         return jsonify({"error": "User not found"}), 404
+
     token = generate_reset_token(user)
     return jsonify({"token": token}), 200
 
