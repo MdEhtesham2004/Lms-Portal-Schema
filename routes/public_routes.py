@@ -98,6 +98,7 @@ def get_course(course_id):
         # Check if user is enrolled (if authenticated)
         user = get_current_user()
         is_enrolled = False
+        
         if user:
             enrollment = Enrollment.query.filter_by(
                 user_id=user.id, 
@@ -107,6 +108,14 @@ def get_course(course_id):
             is_enrolled = enrollment is not None
         
         course_data = course.to_dict(include_modules=True,include_lessons=include_lessons,include_resources=include_resources)
+        # Remove video_url from all lessons if not enrolled, unless it's a preview
+        modules = course_data.get('modules', [])
+
+        for module in modules:
+            lessons = module.get('lessons', [])
+            for lesson in lessons:
+                lesson.pop('video_url', None)
+
         course_data['is_enrolled'] = is_enrolled
         
         return jsonify({'course': course_data}), 200

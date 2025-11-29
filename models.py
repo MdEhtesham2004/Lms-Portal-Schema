@@ -294,7 +294,7 @@ class Lesson(db.Model):
             'module_id': self.module_id,
             'title': self.title,
             'content': self.content,
-            'video_url': self.video_url if include_vedio else None,
+            'video_url': self.video_url if self.is_preview else None,
             'duration_minutes': self.duration_minutes,
             'order': self.order,
             'is_preview': self.is_preview,
@@ -483,6 +483,13 @@ class TokenBlacklist(db.Model):
     jti = db.Column(db.String(120), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
+class TokenBlacklistResetPassword(db.Model):
+    __tablename__ = 'token_blacklist_reset_password'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 

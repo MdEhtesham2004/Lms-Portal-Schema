@@ -48,8 +48,8 @@ def get_admin_dashboard():
                 'this_month_revenue': float(this_month_revenue)
             },
             'recent_activity': {
-                'users': [user.to_dict() for user in recent_users],
-                'enrollments': [
+                'recent_users': [user.to_dict() for user in recent_users],
+                'recent_enrollments': [
                     {
                         'enrollment': enrollment.to_dict(),
                         'user': enrollment.user.to_dict(),
@@ -57,7 +57,7 @@ def get_admin_dashboard():
                     }
                     for enrollment in recent_enrollments
                 ],
-                'payments': [payment.to_dict() for payment in recent_payments]
+                'recent_payments': [payment.to_dict() for payment in recent_payments]
             }
         }), 200
         
@@ -249,7 +249,7 @@ def update_course_status(course_id):
         if not course:
             return jsonify({'error': 'Course not found'}), 404
         
-        data = request.get_json()
+        data = request.get_json()   
         if 'status' not in data:
             return jsonify({'error': 'Status is required'}), 400
         

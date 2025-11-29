@@ -96,7 +96,7 @@ def create_lesson(module_id):
 def list_lessons_all():
     try:
         user = get_current_user()
-        # include_vedio = request.args.get("include_vedio")
+        
         # Role check
         if user.role != UserRole.INSTRUCTOR or user.role != UserRole.ADMIN:
             return jsonify({'error': 'Unauthorized to view lessons'}), 403

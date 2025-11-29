@@ -190,7 +190,7 @@ The AI First Academy Team</p>
 
         subject = "Password Reset - AI First Academy"
 
-        reset_url = f"{frontend_url}/reset-password?token={reset_token}"
+        reset_url = f"{frontend_url}/reset-password?token={reset_token}" 
 
         body = f"""
 Dear {user.first_name},

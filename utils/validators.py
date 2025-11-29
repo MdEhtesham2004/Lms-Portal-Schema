@@ -317,21 +317,40 @@ def generate_reset_token(user):
     token =  serializer.dumps(user.email, salt="password-reset-salt")
     email_service.send_password_reset_email(user=user,reset_token=token)
     return token 
-
-
 def verify_reset_token(token, max_age=3600):   # valid for 1 hour
     from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-    
+    from flask import current_app
+    from .models import TokenBlacklistResetPassword
+    from . import db
+
     serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
 
     try:
+        # 1. Verify token signature & expiry
         email = serializer.loads(
             token,
             salt="password-reset-salt",
             max_age=max_age
         )
+
+        # 2. Check whitelist (blacklist check)
+        blacklisted = TokenBlacklistResetPassword.query.filter_by(token=token).first()
+        if blacklisted:
+            return None   # Token already used
+
+        # 3. Blacklist it immediately (ONE TIME USE)
+        db.session.add(TokenBlacklistResetPassword(token=token))
+        db.session.commit()
+
+        # 4. All good
         return email
+
     except SignatureExpired:
-        return None     # token expired
+        return None  # Token expired
+
     except BadSignature:
-        return None     # tampered/invalid
+        return None  # Token tampered
+
+    except Exception:
+        db.session.rollback()
+        return None  # DB error or unknown failure

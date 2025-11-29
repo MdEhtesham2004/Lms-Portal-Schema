@@ -333,7 +333,7 @@ def logout():
         return jsonify({'error': str(e)}), 500
 
 """ Change Password  """
-@auth_bp.route('/change-password', methods=['POST'])
+@auth_bp.route('/change-password', methods=['PUT'])
 @jwt_required()
 def change_password():
     try:
@@ -413,35 +413,58 @@ def verify_google_token(token):
 # Step 3: Route to handle Google login
 @auth_bp.route('/google', methods=['POST'])
 def google_login():
-    """
-    This route receives the Google ID token from frontend,
-    verifies it, then issues a custom JWT for use with protected routes.
-    """
     data = request.get_json()
     google_token = data.get("token")
-
-
 
     if not google_token:
         return jsonify({"error": "Token is missing"}), 400
 
-    # Verify token with Google
     user_info = verify_google_token(google_token)
     if not user_info:
         return jsonify({"error": "Invalid token"}), 401
 
-    # You can also store user in DB here (optional)
-    # Example: create_user_if_not_exists(user_info["email"])
+    email = user_info.get("email")
+    google_id = user_info.get("sub")  # Google's user ID
     
-    # Step 4: Issue your own JWT
-    access_token = create_access_token(identity= user_info["email"],
+    # ✅ Find or create user in YOUR database
+    user = User.query.filter_by(email=email).first()
+    # Determine the role based on the client type provided in the request
+    client_type = data.get("client_type")
+    
+    if client_type == "student":
+        user_role = UserRoles.STUDENT
+    else:
+        user_role = UserRoles.ADMIN
+    
+    # ✅ Find or create user in YOUR database
+    user = User.query.filter_by(email=email).first()
+    
+    if not user:
+        user = User(
+            email=email,
+            google_id=google_id,  # Optional: store Google ID for reference
+            first_name=user_info.get("given_name"),
+            last_name=user_info.get("family_name"),
+            profile_picture=user_info.get("picture"),
+            email_verified=user_info.get("email_verified", False),
+            role=user_role,
+            is_active=True
+        )
+        
+        db.session.add(user)
+        db.session.commit()
+    
+    # ✅ Use YOUR database's user ID
+    access_token = create_access_token(
+        identity=user.id,  # This is your DB's auto-incremented integer ID
         additional_claims={
-        "name": user_info.get("name"),
-        "picture": user_info.get("picture")
-    })
+            "email": email,
+            "name": user_info.get("name"),
+            "picture": user_info.get("picture")
+        }
+    )
 
-    return jsonify(access_token=access_token), 200      
-
+    return jsonify({"access_token": access_token}), 200
 
 
 @auth_bp.route('/send-token', methods=['POST'])
@@ -472,7 +495,7 @@ def reset_password():
             return jsonify({"error": "New password is required"}), 400
 
         # Verify token
-        email = verify_reset_token(token=token)
+        email = verify_reset_token(token=token) 
 
         if not email:
             return jsonify({"error": "Invalid or expired token"}), 400
