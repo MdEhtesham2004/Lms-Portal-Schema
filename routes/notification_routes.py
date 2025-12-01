@@ -317,7 +317,7 @@ def update_notification_settings():
 def test_notification():
     email = "kiran@aimtechnologies.in"
     subject = "testing flask mail service from backend "
-    message = " welcome to AI First Academy "
+    message = " welcome to Aim Technologies "
     response = email_service.send_email(to_email=email,subject=subject,body=message)
 
     return {

@@ -291,7 +291,3 @@ def delete_resource(resource_id):
         return jsonify({'error': str(e)}), 500
 
 
-@file_bp.route('/download/<path:file_path>', methods=['GET'])
-def download(file_path):
-    return file_service.send_file(file_path)
-

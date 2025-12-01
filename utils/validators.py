@@ -301,8 +301,8 @@ def validate_certificate_number(cert_number):
     if not cert_number:
         return False
     
-    # Expected format: AIFA-{course_id}-{user_id}-{random}
-    pattern = r'^AIFA-\d+-\d+-[A-F0-9]{8}$'
+    # Expected format: AIM-{course_id}-{user_id}-{random}
+    pattern = r'^AIM-\d+-\d+-[A-F0-9]{8}$'
     return re.match(pattern, cert_number) is not None
 
 def validate_meeting_id(meeting_id):

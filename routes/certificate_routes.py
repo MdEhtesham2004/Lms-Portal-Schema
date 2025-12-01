@@ -71,7 +71,7 @@ def generate_certificate(course_id):
         certificate_service = CertificateService()
         
         # Generate unique certificate number
-        certificate_number = f"AIFA-{course_id}-{user.id}-{uuid.uuid4().hex[:8].upper()}"
+        certificate_number = f"AIM-{course_id}-{user.id}-{uuid.uuid4().hex[:8].upper()}"
         
         # Create certificate record
         certificate = Certificate(
@@ -163,7 +163,7 @@ def verify_certificate(certificate_number):
                 'user_name': f"{certificate.user.first_name} {certificate.user.last_name}",
                 'course_title': certificate.course.title,
                 'instructor_name': f"{certificate.course.instructor.first_name} {certificate.course.instructor.last_name}",
-                'issued_by': 'AI First Academy'
+                'issued_by': 'Aim Technologies'
             }
         }), 200
         
@@ -295,7 +295,7 @@ def bulk_generate_certificates():
         for enrollment in completed_enrollments:
             try:
                 # Generate unique certificate number
-                certificate_number = f"AIFA-{course_id}-{enrollment.user_id}-{uuid.uuid4().hex[:8].upper()}"
+                certificate_number = f"AIM-{course_id}-{enrollment.user_id}-{uuid.uuid4().hex[:8].upper()}"
                 
                 # Create certificate record
                 certificate = Certificate(

@@ -138,7 +138,7 @@ def create_app(config_class=Config):
     @app.route('/')
     def root():
         return {
-            'message': 'AI First Academy API',
+            'message': 'Aim Technologies API',
             'version': '1.0',
             'status': 'running',
             'endpoints': {
@@ -159,7 +159,7 @@ def create_app(config_class=Config):
     @app.route('/api/v1/')
     def api_root():
         return {
-            'message': 'AI First Academy API',
+            'message': 'Aim Technologies API',
             'version': '1.0',
             'endpoints': {
                 'auth': '/api/v1/auth',

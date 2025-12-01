@@ -90,7 +90,7 @@ class CertificateService:
             content.append(Spacer(1, 0.3*inch))
             
             # Subtitle
-            content.append(Paragraph("AI First Academy", subtitle_style))
+            content.append(Paragraph("Aim Technologies", subtitle_style))
             content.append(Spacer(1, 0.5*inch))
             
             # This certifies that
@@ -160,7 +160,7 @@ class CertificateService:
             
             # Academy signature
             content.append(Paragraph("_" * 40, signature_style))
-            content.append(Paragraph("AI First Academy", signature_style))
+            content.append(Paragraph("Aim Technologies", signature_style))
             content.append(Paragraph("Certificate Authority", signature_style))
             content.append(Spacer(1, 0.2*inch))
             
@@ -218,7 +218,7 @@ class CertificateService:
             # Subtitle
             c.setFont("Helvetica", 20)
             c.setFillColor(black)
-            c.drawCentredText(width/2, title_y - 50, "AI First Academy")
+            c.drawCentredText(width/2, title_y - 50, "Aim Technologies")
             
             # "This certifies that"
             c.setFont("Helvetica", 16)
@@ -278,7 +278,7 @@ class CertificateService:
             # Academy signature
             academy_x = 3 * width/4
             c.line(academy_x - 60, signature_y, academy_x + 60, signature_y)
-            c.drawCentredText(academy_x, signature_y - 20, "AI First Academy")
+            c.drawCentredText(academy_x, signature_y - 20, "Aim Technologies")
             c.drawCentredText(academy_x, signature_y - 35, "Certificate Authority")
             
             # Verification URL
