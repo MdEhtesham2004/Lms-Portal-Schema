@@ -12,17 +12,21 @@ from io import BytesIO
 from dotenv import load_dotenv
 from services.file_service import FileService
 load_dotenv()
-file_service = FileService()
+from flask import current_app
 
 class CertificateService:
     def __init__(self):
-        self.upload_folder = os.environ.get('UPLOAD_FOLDER')
-        self.certificates_folder = os.path.join(self.upload_folder, 'certificates')
-        
-        # Create certificates directory if it doesn't exist
-        # os.makedirs(self.certificates_folder, exist_ok=True)
-        
-        file_service.create_directory('certificates')
+        self.file_service = FileService()
+        # Ensure certificates directory exists
+        self.file_service.create_directory('certificates')
+
+    @property
+    def upload_folder(self):
+        return self.file_service.upload_folder
+
+    @property
+    def certificates_folder(self):
+        return os.path.join(self.upload_folder, 'certificates')
         
     
     def generate_certificate_pdf(self, user, course, certificate):

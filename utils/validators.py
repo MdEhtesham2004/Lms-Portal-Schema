@@ -5,6 +5,11 @@ import uuid
 from itsdangerous import URLSafeTimedSerializer
 from flask import current_app
 from services.email_service import EmailService
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+from flask import current_app
+from models import TokenBlacklistResetPassword
+from app import db
+
 email_service = EmailService()
 
 
@@ -317,12 +322,8 @@ def generate_reset_token(user):
     token =  serializer.dumps(user.email, salt="password-reset-salt")
     email_service.send_password_reset_email(user=user,reset_token=token)
     return token 
-def verify_reset_token(token, max_age=3600):   # valid for 1 hour
-    from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-    from flask import current_app
-    from .models import TokenBlacklistResetPassword
-    from . import db
 
+def verify_reset_token(token, max_age=3600):   # valid for 1 hour    
     serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
 
     try:

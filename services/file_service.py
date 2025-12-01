@@ -1,7 +1,7 @@
 import os
 import uuid
 from werkzeug.utils import secure_filename
-from flask import send_file, abort
+from flask import send_file, abort, current_app
 import mimetypes
 # from moviepy.editor import VideoFileClip
 import os
@@ -9,17 +9,24 @@ import cv2
 
 class FileService:
     def __init__(self):
-        self.upload_folder = os.environ.get('UPLOAD_FOLDER')
-        self.max_file_size = 16 * 1024 * 1024  # 16MB
-        
-        # Create upload directory if it doesn't exist
-        os.makedirs(self.upload_folder, exist_ok=True)
+        pass
+
+    @property
+    def upload_folder(self):
+        return current_app.config.get('UPLOAD_FOLDER', 'uploads')
+
+    @property
+    def max_file_size(self):
+        return current_app.config.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024)
     
     def save_file(self, file, subfolder=None):
         """Save uploaded file and return file path and size"""
         try:
             if not file or not file.filename:
                 raise ValueError("No file provided")
+            
+            # Ensure base upload directory exists
+            os.makedirs(self.upload_folder, exist_ok=True)
             
             # Check file size (if available)
             if hasattr(file, 'content_length') and file.content_length:

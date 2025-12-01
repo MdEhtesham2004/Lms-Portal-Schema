@@ -98,12 +98,12 @@ class EmailService:
     
     def send_welcome_email(self, user):
         """Send welcome email to new users"""
-        subject = "Welcome to AI First Academy!"
+        subject = "Welcome to Aim Technologies!"
         
         body = f"""
 Dear {user.first_name},
 
-Welcome to AI First Academy! We're excited to have you join our community of AI enthusiasts and learners.
+Welcome to Aim Technologies! We're excited to have you join our community of AI enthusiasts and learners.
 
 Your account has been successfully created with the email: {user.email}
 
@@ -115,17 +115,17 @@ What's next?
 If you have any questions, feel free to reach out to our support team.
 
 Best regards,
-The AI First  AI First Academy
+The Aim Technologies
 """
         
         html_body = f"""
 <html>
 <body>
-<h2>Welcome to AI First Academy!</h2>
+<h2>Welcome to Aim Technologies!</h2>
 
 <p>Dear {user.first_name},</p>
 
-<p>Welcome to AI First Academy! We're excited to have you join our community of AI enthusiasts and learners.</p>
+<p>Welcome to Aim Technologies! We're excited to have you join our community of AI enthusiasts and learners.</p>
 
 <p>Your account has been successfully created with the email: <strong>{user.email}</strong></p>
 
@@ -139,7 +139,7 @@ The AI First  AI First Academy
 <p>If you have any questions, feel free to reach out to our support team.</p>
 
 <p>Best regards,<br>
-The AI First Academy</p>
+The Aim Technologies</p>
 </body>
 </html>
 """
@@ -152,7 +152,7 @@ The AI First Academy</p>
 
     def send_notification_email(self, user, title, message):
         """Send general notification email"""
-        subject = f"AI First The AI First Academy: {title}"
+        subject = f"Aim Technologies: {title}"
 
         body = f"""
 Dear {user.first_name},
@@ -160,7 +160,7 @@ Dear {user.first_name},
 {message}
 
 Best regards,
-The AI First Academy Team
+The Aim Technologies Team
         """
 
         html_body = f"""
@@ -173,7 +173,7 @@ The AI First Academy Team
 <p>{message}</p>
 
 <p>Best regards,<br>
-The AI First Academy Team</p>
+The Aim Technologies Team</p>
 </body>
 </html>
         """
@@ -188,14 +188,14 @@ The AI First Academy Team</p>
         else:
             frontend_url = os.environ.get("FRONTEND_URL_STUDENTS")
 
-        subject = "Password Reset - AI First Academy"
+        subject = "Password Reset - Aim Technologies"
 
         reset_url = f"{frontend_url}/reset-password?token={reset_token}" 
 
         body = f"""
 Dear {user.first_name},
 
-We received a request to reset your password for your AI First Academy account.
+We received a request to reset your password for your Aim Technologies account.
 
 If you requested this password reset, please click the link below to reset your password:
 {reset_url}
@@ -205,7 +205,7 @@ This link will expire in 1 hour for security reasons.
 If you did not request a password reset, please ignore this email and your password will remain unchanged.
 
 Best regards,
-The AI First Academy Team
+The Aim Technologies Team
         """
 
         html_body = f"""
@@ -215,7 +215,7 @@ The AI First Academy Team
 
 <p>Dear {user.first_name},</p>
 
-<p>We received a request to reset your password for your AI First Academy account.</p>
+<p>We received a request to reset your password for your Aim Technologies account.</p>
 
 <p>If you requested this password reset, please click the link below to reset your password:</p>
 <p><a href="{reset_url}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
@@ -225,7 +225,7 @@ The AI First Academy Team
 <p>If you did not request a password reset, please ignore this email and your password will remain unchanged.</p>
 
 <p>Best regards,<br>
-The AI First Academy Team</p>
+The Aim Technologies Team</p>
 </body>
 </html>
         """
@@ -255,7 +255,7 @@ We’re excited to invite you to an upcoming live session for your course **{cou
 Don’t miss this opportunity to learn, interact, and ask your questions live!
 
 Best regards,  
-The AI First Academy Team
+The Aim Technologies Team
         """
 
         html_body = f"""
@@ -279,7 +279,7 @@ The AI First Academy Team
 <p style="margin-top: 20px;">Don’t miss this opportunity to learn, interact, and ask your questions live!</p>
 
 <p>Best regards,<br>
-The <strong>AI First Academy Team</strong></p>
+The <strong>Aim Technologies Team</strong></p>
 </body>
 </html>
         """
@@ -304,7 +304,7 @@ Course Details:
 We’re excited to have you on board. You can now access your course materials and upcoming live sessions in your dashboard.
 
 Happy Learning!  
-The AI First Academy Team
+The Aim Technologies Team
         """
 
         html_body = f"""
@@ -328,7 +328,7 @@ The AI First Academy Team
 <p>We’re excited to have you on board! 🚀</p>
 
 <p>Best regards,<br>
-The <strong>AI First Academy Team</strong></p>
+The <strong>Aim Technologies Team</strong></p>
 </body>
 </html>
         """
@@ -359,8 +359,8 @@ The <strong>AI First Academy Team</strong></p>
 #     )
 
 #     # response = email_service.send_email(to_email="mohammed.ehtesham@aimtechnologies.in",subject="Here is the test Message from Twilio" ,
-#     #                         body=f"Welcome to AI First Academy, \n here is the test message.",include_whatsapp_msg=True,user=test_user,
-#     #                         whatsapp_msg="Welcome to AI First Academy")
+#     #                         body=f"Welcome to Aim Technologies, \n here is the test message.",include_whatsapp_msg=True,user=test_user,
+#     #                         whatsapp_msg="Welcome to Aim Technologies")
 #     response = email_service.send_welcome_email(user=test_user)
     
 #     print(response)
