@@ -20,3 +20,6 @@ twilio==9.8.1
 razorpay==1.4.2
 setuptools>=70.0.0
 wheel
+Flask-Limiter>=3.5.0
+redis>=5.0.0
+Flask-Talisman>=1.1.0

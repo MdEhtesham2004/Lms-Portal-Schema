@@ -1,21 +1,17 @@
-from flask import Blueprint, request, jsonify,session
-from flask_jwt_extended import jwt_required, create_access_token, create_refresh_token, get_jwt_identity, get_jwt,set_access_cookies,set_refresh_cookies
+from flask import Blueprint, request, jsonify, session
+from flask_jwt_extended import jwt_required, create_access_token, create_refresh_token, get_jwt_identity, get_jwt, set_access_cookies, set_refresh_cookies
 from werkzeug.security import check_password_hash
-from app import db
-from models import User, UserRole, TokenBlacklist
-from utils.validators import validate_email, validate_password
-import re
-import os 
 from werkzeug.utils import secure_filename
-import requests 
+import requests
+import os
+
+from app import db, limiter
+from models import User, UserRole, TokenBlacklist
+from utils.validators import validate_email, validate_password, verify_reset_token, generate_reset_token
+from utils.security import FailedLoginTracker, SecurityMonitor, IPBlocker
 from config import Config
 from services.email_service import EmailService
-from flask import jsonify, request
-from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies
-from werkzeug.utils import secure_filename
-import os
 from services.sms_service import SmsService
-from utils.validators import verify_reset_token,generate_reset_token
 
 
 
@@ -117,6 +113,7 @@ def send_otp(phone):
     return otp_status
 
 @auth_bp.route('/register', methods=['POST'])
+@limiter.limit("5 per hour")
 def register():
     try:
         data = request.get_json()
@@ -178,7 +175,8 @@ def register():
         session.pop('pending_user', None)
         return jsonify({'error': str(e)}), 500
     
-@auth_bp.route('/resend-otp',methods=['POST'])
+@auth_bp.route('/resend-otp', methods=['POST'])
+@limiter.limit("3 per hour")
 def resend_otp():
     pending_user=session.get('pending_user')
     phone = pending_user.get('phone')
@@ -195,6 +193,7 @@ def resend_otp():
 
 
 @auth_bp.route('/verify-otp', methods=['POST'])
+@limiter.limit("10 per hour")
 def verify_otp():
     try:
         print("verify otp route hit--")
@@ -263,6 +262,7 @@ def verify_otp():
 
 """  Login  """
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("10 per 15 minutes")
 def login():
     try:
         data = request.get_json()
@@ -271,14 +271,37 @@ def login():
         if not data.get('email') or not data.get('password'):
             return jsonify({'error': 'Email and password are required'}), 400
         
+        email = data['email'].lower()
+        
+        # Check if IP is blocked
+        is_blocked, seconds_remaining = IPBlocker.is_ip_blocked()
+        if is_blocked:
+            return jsonify({
+                'error': 'Too many failed attempts. Please try again later.',
+                'retry_after': seconds_remaining
+            }), 429
+        
+        # Check if account is locked
+        is_locked, seconds_remaining = FailedLoginTracker.is_blocked(email=email)
+        if is_locked:
+            return jsonify({
+                'error': 'Account temporarily locked due to multiple failed login attempts.',
+                'retry_after': seconds_remaining
+            }), 429
+        
         # Find user
-        user = User.query.filter_by(email=data['email'].lower()).first()
+        user = User.query.filter_by(email=email).first()
         
         if not user or not user.check_password(data['password']):
+            # Record failed attempt
+            FailedLoginTracker.record_failed_attempt(email=email)
             return jsonify({'error': 'Invalid email or password'}), 401
         
         if not user.is_active:
             return jsonify({'error': 'Account is deactivated'}), 401
+        
+        # Reset failed attempts on successful login
+        FailedLoginTracker.reset_attempts(email=email)
         
         # Create tokens
         access_token = create_access_token(identity=str(user.id))
@@ -412,6 +435,7 @@ def verify_google_token(token):
 
 # Step 3: Route to handle Google login
 @auth_bp.route('/google', methods=['POST'])
+@limiter.limit("20 per hour")
 def google_login():
     data = request.get_json()
     google_token = data.get("token")
@@ -432,9 +456,9 @@ def google_login():
     client_type = data.get("client_type")
     
     if client_type == "student":
-        user_role = UserRoles.STUDENT
+        user_role = UserRole.STUDENT
     else:
-        user_role = UserRoles.ADMIN
+        user_role = UserRole.ADMIN
     
     # ✅ Find or create user in YOUR database
     user = User.query.filter_by(email=email).first()
@@ -468,6 +492,7 @@ def google_login():
 
 
 @auth_bp.route('/send-token', methods=['POST'])
+@limiter.limit("3 per hour")
 def send_reset_token():
     email = request.get_json().get("email")
     if not email:
@@ -482,6 +507,7 @@ def send_reset_token():
 
 
 @auth_bp.route('/reset-password', methods=['POST'])
+@limiter.limit("5 per hour")
 def reset_password():
     try:
         token = request.args.get("token", None)

@@ -8,6 +8,9 @@ from flask_mail import Mail
 from flask_cors import CORS
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_talisman import Talisman
 from config import Config
 from dotenv import load_dotenv
 
@@ -15,7 +18,10 @@ load_dotenv()
 
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 class Base(DeclarativeBase):
     pass
@@ -25,6 +31,17 @@ migrate = Migrate()
 jwt = JWTManager()
 mail = Mail()
 cors = CORS()
+
+# Initialize Flask-Limiter
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",  # Will be updated in create_app
+    strategy="fixed-window"
+)
+
+# Talisman will be initialized in create_app
+talisman = None
 
 FRONTEND_URL_STUDENTS = os.environ.get("FRONTEND_URL_STUDENTS")
 FRONTEND_URL_ADMIN = os.environ.get("FRONTEND_URL_ADMIN")
@@ -55,6 +72,44 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     jwt.init_app(app)
     mail.init_app(app)
+    
+    # Initialize Flask-Limiter
+    limiter.init_app(app)
+    
+    # Configure storage (Redis or memory)
+    limiter._storage_uri = app.config['RATELIMIT_STORAGE_URL']
+    
+    # Log configuration
+    if app.config['RATELIMIT_ENABLED']:
+        app.logger.info(f"✅ Rate limiting ENABLED with storage: {app.config['RATELIMIT_STORAGE_URL']}")
+    else:
+        app.logger.warning(f"⚠️  Rate limiting DISABLED (decorators will be ignored)")
+        # Disable limiter if not enabled
+        limiter.enabled = False
+    
+    
+    # Initialize Talisman for security headers (only in production)
+    if app.config['SECURITY_HEADERS_ENABLED']:
+        global talisman
+        talisman = Talisman(
+            app,
+            force_https=app.config['FORCE_HTTPS'],
+            strict_transport_security=True,
+            strict_transport_security_max_age=31536000,  # 1 year
+            content_security_policy=app.config['CSP_POLICY'],
+            content_security_policy_nonce_in=['script-src'],
+            referrer_policy='strict-origin-when-cross-origin',
+            feature_policy={
+                'geolocation': "'none'",
+                'microphone': "'none'",
+                'camera': "'none'"
+            }
+        )
+        app.logger.info("Security headers enabled via Talisman")
+    
+    # Initialize security middleware
+    from utils.middleware import init_middleware
+    init_middleware(app)
     
     # Configure 
     # CORS(app)
@@ -96,6 +151,8 @@ def create_app(config_class=Config):
     from routes.lessons_resources_routes import lessons_resource_bp
     from routes.enrollments_routes import enrollments_bp
     from routes.public_routes import public_bp
+    from routes.contact_routes import contact_bp
+
 
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
     app.register_blueprint(user_bp, url_prefix='/api/v1/users')
@@ -120,6 +177,8 @@ def create_app(config_class=Config):
     app.register_blueprint(live_session_bp, url_prefix='/api/v1/live-sessions')
     app.register_blueprint(helper_bp,url_prefix='/api/v1/helper/')
     
+    app.register_blueprint(contact_bp, url_prefix='/api/v1/contact')
+    
     # Create tables
     with app.app_context():
         import models  # noqa: F401
@@ -133,6 +192,14 @@ def create_app(config_class=Config):
         token_jti = jwt_payload['jti']
         token = TokenBlacklist.query.filter_by(jti=token_jti).first()
         return token is not None
+        
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        return {
+            "error": "Rate limit exceeded",
+            "message": str(e.description),
+            "retry_after": int(e.description.split("per")[1].strip().split(" ")[0]) if "per" in str(e.description) else 60
+        }, 429
     
     # Root endpoint
     @app.route('/')

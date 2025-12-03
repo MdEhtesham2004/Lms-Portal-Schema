@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required
 from werkzeug.utils import secure_filename
-from app import db
+from app import db, limiter
 from models import LessonResource, Lesson, Course, Enrollment
 from auth import get_current_user, instructor_required
 from services.file_service import FileService
@@ -27,6 +27,7 @@ def allowed_file(filename):
 # upload lesson resource 
 @file_bp.route('/upload', methods=['POST'])
 @instructor_required
+@limiter.limit("20 per hour")
 def upload_file():
     try:
         user = get_current_user()
@@ -84,6 +85,7 @@ def upload_file():
 # download lesson resource 
 @file_bp.route('/download/<int:resource_id>', methods=['GET'])
 @jwt_required()
+@limiter.limit("100 per hour")
 def download_file(resource_id):
     try:
         user = get_current_user()
@@ -129,6 +131,7 @@ def download_file(resource_id):
 
 @file_bp.route('/upload-course-thumbnail', methods=['POST'])
 @instructor_required
+@limiter.limit("20 per hour")
 def upload_course_thumbnail():
     try:
         user = get_current_user()
@@ -177,6 +180,7 @@ def upload_course_thumbnail():
 
 @file_bp.route('/upload-profile-picture', methods=['POST'])
 @jwt_required()
+@limiter.limit("10 per hour")
 def upload_profile_picture():
     try:
         user = get_current_user()

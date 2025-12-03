@@ -31,17 +31,35 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@aifirstacademy.com')
     
-    # Stripe configuration
-    STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
-    STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
     
     # File upload configuration
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     # In Flask app config
     
+    
     # Rate limiting
     RATELIMIT_STORAGE_URL = os.environ.get('REDIS_URL', 'memory://')
+    RATELIMIT_ENABLED = os.environ.get('RATELIMIT_ENABLED', 'true').lower() in ['true', 'on', '1']
+    RATELIMIT_DEFAULT = os.environ.get('RATELIMIT_DEFAULT', '200 per day, 50 per hour')
+    RATELIMIT_HEADERS_ENABLED = True
     
-    # Security
+    # Security settings
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')
+    MAX_LOGIN_ATTEMPTS = int(os.environ.get('MAX_LOGIN_ATTEMPTS', '5'))
+    LOCKOUT_DURATION = int(os.environ.get('LOCKOUT_DURATION', '30'))  # minutes
+    
+    # Security headers
+    SECURITY_HEADERS_ENABLED = os.environ.get('SECURITY_HEADERS_ENABLED', 'true').lower() in ['true', 'on', '1']
+    FORCE_HTTPS = os.environ.get('FORCE_HTTPS', 'false').lower() in ['true', 'on', '1']
+    
+    # Content Security Policy
+    CSP_POLICY = {
+        'default-src': "'self'",
+        'script-src': ["'self'", "'unsafe-inline'", "https://checkout.razorpay.com", "https://accounts.google.com"],
+        'style-src': ["'self'", "'unsafe-inline'"],
+        'img-src': ["'self'", "data:", "https:"],
+        'font-src': ["'self'", "data:"],
+        'connect-src': ["'self'", "https://api.razorpay.com"],
+        'frame-src': ["'self'", "https://api.razorpay.com", "https://accounts.google.com"],
+    }

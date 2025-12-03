@@ -1,13 +1,13 @@
 from flask import Blueprint, request, jsonify, redirect
 from flask_jwt_extended import jwt_required
-from app import db
+from app import db, limiter
 from models import Payment, Course, Enrollment, PaymentStatus, User
 from auth import get_current_user
 from services.payment_service import PaymentService
 from services.razor_payment_service import RazorpayPaymentService
 import os
 import hashlib
-import hmac 
+import hmac
 
 razorpay_service =  RazorpayPaymentService()
 
@@ -78,6 +78,7 @@ payment_bp = Blueprint('payments', __name__)
 
 @payment_bp.route('/create-order', methods=['POST'])
 @jwt_required()
+@limiter.limit("10 per minute")
 def create_order():
     try:
         user = get_current_user()
@@ -125,6 +126,7 @@ def create_order():
 
 @payment_bp.route('/verify-payment', methods=['POST'])
 @jwt_required()
+@limiter.limit("20 per minute")
 def verify_payment():
     try:
         data = request.get_json()
@@ -240,6 +242,7 @@ def razorpay_webhook():
 
 @payment_bp.route('/create-checkout-session', methods=['POST'])
 @jwt_required()
+@limiter.limit("10 per minute")
 def create_checkout_session():
     try:
         user = get_current_user()

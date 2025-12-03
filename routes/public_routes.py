@@ -1,13 +1,15 @@
-from flask import request,Blueprint,jsonify
-from models import MasterCategory,SubCategory,Course,Enrollment
+from flask import request, Blueprint, jsonify
+from models import MasterCategory, SubCategory, Course, Enrollment
 from auth import get_current_user
+from app import limiter
 
 
 
-public_bp = Blueprint("public",__name__)
+public_bp = Blueprint("public", __name__)
 
 
 @public_bp.route("/")
+# @limiter.limit("10 per minute")
 def public():
     return {
         "page":"public",
@@ -17,6 +19,7 @@ def public():
 
 """Get all the Master Course with specific id including subcategories """
 @public_bp.route("/get-mastercategories/<int:category_id>", methods=["POST"])
+@limiter.limit("60 per minute")
 def get_master_category(category_id):
     try:
         category = MasterCategory.query.get_or_404(category_id)
@@ -32,6 +35,7 @@ def get_master_category(category_id):
 
 """Get master Categories only"""
 @public_bp.route('/get-mastercategories', methods=['POST'])
+@limiter.limit("60 per minute")
 def get_master_categories_only():   
     try:
         include_subcategories=request.args.get("subcategories")
@@ -60,6 +64,7 @@ def get_master_categories_only():
 # ✅ GET all subcategories
 """Get All Subcategories with courses"""
 @public_bp.route("/get-subcategories", methods=["POST"])
+@limiter.limit("60 per minute")
 def get_all_subcategories():
     try:
         include_courses=request.args.get("courses")
@@ -73,6 +78,7 @@ def get_all_subcategories():
 # ✅ GET single subcategory by ID
 """ GET single subcategory by ID"""
 @public_bp.route("/get-subcategories/<int:subcategory_id>", methods=["POST"])
+@limiter.limit("60 per minute")
 def get_subcategory(subcategory_id):
     try:
         subcategory = SubCategory.query.get_or_404(subcategory_id)
@@ -86,6 +92,7 @@ def get_subcategory(subcategory_id):
 # get specific course
 """ get a specific course   """
 @public_bp.route('/get-courses/<int:course_id>', methods=['POST'])
+@limiter.limit("60 per minute")
 def get_course(course_id):
     try:
         course = Course.query.get(course_id)
@@ -124,6 +131,7 @@ def get_course(course_id):
         return jsonify({'error': str(e)}), 500
 
 @public_bp.route('/get-courses', methods=['POST'])
+@limiter.limit("30 per minute")
 def get_courses_all():
     try:
         page = request.args.get('page', 1, type=int)
