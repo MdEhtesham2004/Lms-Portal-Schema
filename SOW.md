@@ -1,5 +1,5 @@
 # Statement of Work (SOW)
-## AI First Academy - Backend API Platform
+## Aim Technologies - Backend API Platform
 
 **Version:** 2.0  
 **Last Updated:** December 2024
@@ -8,7 +8,7 @@
 
 ## 1. Project Overview
 
-The **AI First Academy** backend is a comprehensive RESTful API powering an online Learning Management System (LMS). It provides secure authentication, course management, payment processing, and certification services for three user roles: **Students**, **Instructors**, and **Administrators**.
+The **Aim Technologies** backend is a comprehensive RESTful API powering an online Learning Management System (LMS). It provides secure authentication, course management, payment processing, and certification services for three user roles: **Students**, **Instructors**, and **Administrators**.
 
 ---
 
