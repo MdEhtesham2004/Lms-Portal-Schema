@@ -192,3 +192,15 @@ def get_courses_all():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
+@public_bp.route('/test-session')
+def test():
+    session['Test'] = "testing redis for managing sessions"
+    return jsonify(session.get('Test'))
+
+
+@app.route('/test')
+def test():
+    session['check'] = "ok"
+    return jsonify({"session": session.get('check')})
