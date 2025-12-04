@@ -1,4 +1,4 @@
-from flask import request, Blueprint, jsonify
+from flask import request, Blueprint, jsonify,session
 from models import MasterCategory, SubCategory, Course, Enrollment
 from auth import get_current_user
 from app import limiter
