@@ -200,7 +200,7 @@ def test():
     return jsonify(session.get('Test'))
 
 
-@app.route('/test')
+@public_bp.route('/test')
 def test():
     session['check'] = "ok"
     return jsonify({"session": session.get('check')})
