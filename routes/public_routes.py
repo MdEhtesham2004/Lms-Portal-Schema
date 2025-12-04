@@ -195,12 +195,7 @@ def get_courses_all():
 
 
 @public_bp.route('/test-session')
-def test():
+def test_session():
     session['Test'] = "testing redis for managing sessions"
     return jsonify(session.get('Test'))
 
-
-@public_bp.route('/test')
-def test():
-    session['check'] = "ok"
-    return jsonify({"session": session.get('check')})
