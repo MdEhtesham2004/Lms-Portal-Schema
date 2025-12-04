@@ -144,15 +144,36 @@ def register():
             role = UserRole.STUDENT
 
         # Save temporarily in session
+        # session.permanent = True  # Extend session lifetime (default 31 days)
+        # session.permanent = True
+        # session.modified = True  # ADD THIS
+        
+        # Save temporarily in session
+        session.clear()  # Clear any old data first
+        session.permanent = True
         session['pending_user'] = {
             'email': data['email'].lower(),
             'first_name': data['first_name'],
             'last_name': data['last_name'],
-            'password': data['password'],
-            'phone': data['phone'],
-            'bio': data.get('bio'),
-            'role':role.value
-        }
+    'password': data['password'],
+    'phone': data['phone'],
+    'bio': data.get('bio'),
+    'role': role.value
+}
+        session.modified = True  # ADD THIS LINE
+        _ = session['pending_user']  # Force serialization - ADD THIS LINE
+
+        print(f"DEBUG: Saved to session: {session.get('pending_user')}")  # Verify
+        
+        # session['pending_user'] = {
+        #     'email': data['email'].lower(),
+        #     'first_name': data['first_name'],
+        #     'last_name': data['last_name'],
+        #     'password': data['password'],
+        #     'phone': data['phone'],
+        #     'bio': data.get('bio'),
+        #     'role':role.value
+        # }
         
         # Send OTP via Twilio
         # from services.sms_service import SmsService
@@ -178,30 +199,44 @@ def register():
 @auth_bp.route('/resend-otp', methods=['POST'])
 @limiter.limit("3 per hour")
 def resend_otp():
-    pending_user=session.get('pending_user')
-    phone = pending_user.get('phone')
-    otp_status = send_otp(phone=phone)
+    try:
+        pending_user = session.get('pending_user')
+        if not pending_user:
+            return jsonify({'error': 'Session expired or no user data found'}), 400
+            
+        phone = pending_user.get('phone')
+        if not phone:
+            return jsonify({'error': 'Phone number not found in session'}), 400
 
-    if otp_status != "pending":
-        session.pop('pending_user', None)  # clear if failed
-        return jsonify({'error': 'Failed to send OTP'}), 500
+        otp_status = send_otp(phone=phone)
 
-    return jsonify({
-        'message': f'OTP sent to {phone}',
-        'status': 'OTP_SENT'
-    }), 200
+        if otp_status != "pending":
+            # session.pop('pending_user', None)  # Optional: Decide if you want to clear session on failure
+            return jsonify({'error': 'Failed to send OTP'}), 500
+
+        return jsonify({
+            'message': f'OTP sent to {phone}',
+            'status': 'OTP_SENT'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @auth_bp.route('/verify-otp', methods=['POST'])
 @limiter.limit("10 per hour")
 def verify_otp():
     try:
-        print("verify otp route hit--")
+        print("verify otp route hit--") 
         data = request.get_json()
         otp = data.get('otp')
         pending_user = session.get('pending_user')
-        print("pending user from session :",pending_user)
-        phone = pending_user.get('phone')
+        print("pending user from session:", pending_user)
+
+        if not pending_user:
+            return jsonify({'error': 'Session expired or no user data found'}), 400
+
+        phone = pending_user.get('phone')  # Now safe
 
         
         if not phone or not otp:

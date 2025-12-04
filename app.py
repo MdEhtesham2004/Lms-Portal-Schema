@@ -13,6 +13,10 @@ from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
 from config import Config
 from dotenv import load_dotenv
+from flask_session import Session
+from datetime import timedelta
+from redis import Redis
+
 
 load_dotenv()
 
@@ -62,8 +66,21 @@ def create_app(config_class=Config):
     app.config['MAIL_DEFAULT_SENDER'] = os.environ.get("MAIL_DEFAULT_SENDER")
     
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'   # Required for cross-site
-    app.config['SESSION_COOKIE_SECURE'] = True       # Required on https
+    # app.config['SESSION_COOKIE_SAMESITE'] = 'lax'   # Required for cross-site
+    app.config['SESSION_COOKIE_SECURE'] = True     # Required on https
     app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+    # In your app configuration (app.py or config.py)
+    app.config['SECRET_KEY'] = 'your-secret-key-here'  # REQUIRED!
+    # app.config['SESSION_TYPE'] = 'filesystem'  # or 'redis', 'sqlalchemy'
+    app.config['SESSION_TYPE'] = 'redis'  # or 'redis', 'sqlalchemy'
+    # app.config['SESSION_REDIS'] = Redis.from_url('redis://localhost:6379')
+    app.config['SESSION_REDIS'] = Redis.from_url(os.environ.get("REDIS_URL"))
+
+    app.config['SESSION_PERMANENT'] = True
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)
+
+    # If using server-side sessions
 
 
     
@@ -72,6 +89,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     jwt.init_app(app)
     mail.init_app(app)
+    Session(app)
     
     # Initialize Flask-Limiter
     limiter.init_app(app)

@@ -16,7 +16,8 @@ def create_contact_form():
         name=data['name'],
         email=data['email'],
         message=data['message'],
-        phone_number=data.get('phone_number')  # Optional field
+        phone_number=data.get('phone_number'),  # Optional field
+        course_interest=data.get('course_interest')
     )
     db.session.add(new_form)
     db.session.commit()
@@ -45,9 +46,9 @@ def update_contact_form(form_id):
         form.message = data['message']
     if 'phone_number' in data:
         form.phone_number = data['phone_number']
-    if 'replied' in data:
-        form.replied = data['replied']
-
+    if 'course_interest' in data:
+        form.course_interest = data['course_interest']
+    
     db.session.commit()
     return jsonify(form.to_dict()), 200
 
