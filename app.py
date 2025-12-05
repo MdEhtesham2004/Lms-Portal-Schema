@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from flask_session import Session
 from datetime import timedelta
 from redis import Redis
-
+from flask import request
 
 load_dotenv()
 
@@ -79,17 +79,12 @@ def create_app(config_class=Config):
     app.config["SESSION_COOKIE_NAME"] = "session"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     
-    # Environment-based cookie security
-    is_production = os.environ.get('FLASK_ENV') == 'production'
+    # For ngrok or production (HTTPS)
+    app.config["SESSION_COOKIE_SAMESITE"] = "None"  # Required for cross-origin
+    app.config["SESSION_COOKIE_SECURE"] = True      # Required for HTTPS
     
-    if is_production:
-        # Production with HTTPS: Use SameSite=None for cross-origin + Secure=True
-        app.config["SESSION_COOKIE_SAMESITE"] = "None"
-        app.config["SESSION_COOKIE_SECURE"] = True
-    else:
-        # Local development without HTTPS: Disable SameSite to allow cross-origin cookies
-        app.config["SESSION_COOKIE_SAMESITE"] = None  # Disables SameSite protection
-        app.config["SESSION_COOKIE_SECURE"] = False   # Allows HTTP
+    # Note: If testing locally without ngrok, set FLASK_ENV=development and use HTTP
+
 
 
     
@@ -125,6 +120,8 @@ def create_app(config_class=Config):
             strict_transport_security_max_age=31536000,  # 1 year
             content_security_policy=app.config['CSP_POLICY'],
             content_security_policy_nonce_in=['script-src'],
+            session_cookie_samesite='None',
+            session_cookie_secure=True,
             referrer_policy='strict-origin-when-cross-origin',
             feature_policy={
                 'geolocation': "'none'",
@@ -147,8 +144,10 @@ def create_app(config_class=Config):
             "http://localhost:5173",
             "http://localhost:5174",
             "http://127.0.0.1:3000",
+            "https://aim-admin-portal.vercel.app",  # Production frontend
             FRONTEND_URL_STUDENTS,
-            FRONTEND_URL_ADMIN
+            FRONTEND_URL_ADMIN,
+            "https://aim-international.vercel.app"
         ],
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization"]
@@ -176,6 +175,8 @@ def create_app(config_class=Config):
     from routes.enrollments_routes import enrollments_bp
     from routes.public_routes import public_bp
     from routes.contact_routes import contact_bp
+
+
 
 
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')

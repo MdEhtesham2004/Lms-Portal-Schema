@@ -510,8 +510,6 @@ def verify_google_token(token):
         print(f"Token verification error: {e}")
         return None
 
-
-# Step 3: Route to handle Google login
 @auth_bp.route('/google', methods=['POST'])
 @limiter.limit("20 per hour")
 def google_login():
@@ -529,11 +527,18 @@ def google_login():
         email = user_info.get("email")
         google_id = user_info.get("sub")
         
+        # Convert email_verified to boolean
+        email_verified_value = user_info.get("email_verified", False)
+        if isinstance(email_verified_value, str):
+            email_verified = email_verified_value.lower() == "true"
+        else:
+            email_verified = bool(email_verified_value)
+        
         # Determine role BEFORE querying
-        client_type = data.get("client_type", "student")  # Default to student
+        client_type = data.get("client_type", "student")
         user_role = UserRole.STUDENT if client_type == "student" else UserRole.ADMIN
         
-        # Find or create user (SINGLE query)
+        # Find or create user
         user = User.query.filter_by(email=email).first()
         
         if not user:
@@ -542,21 +547,20 @@ def google_login():
                 first_name=user_info.get("given_name"),
                 last_name=user_info.get("family_name"),
                 profile_picture=user_info.get("picture"),
-                email_verified=user_info.get("email_verified", False),
+                email_verified=email_verified,  # ✅ Boolean
                 role=user_role,
                 is_active=True
             )
             db.session.add(user)
             db.session.commit()
         else:
-            # Optional: Update existing user's info
             user.profile_picture = user_info.get("picture")
-            user.email_verified = user_info.get("email_verified", False)
+            user.email_verified = email_verified  # ✅ Boolean
             db.session.commit()
         
         # Create access token
         access_token = create_access_token(
-            identity=str(user.id),  # Convert to string for JWT
+            identity=str(user.id),
             additional_claims={
                 "email": email,
                 "name": user_info.get("name"),
@@ -566,15 +570,13 @@ def google_login():
 
         return jsonify({
             "access_token": access_token,
-            "user": user.to_dict()  # Include user data in response
+            "user": user.to_dict()
         }), 200
         
     except Exception as e:
         db.session.rollback()
         print(f"Google login error: {str(e)}")
-        return jsonify({"error": "Login failed"}), 500
-
-    
+        return jsonify({"error": "Login failed"}), 500    
 @auth_bp.route('/send-token', methods=['POST'])
 @limiter.limit("3 per hour")
 def send_reset_token():
