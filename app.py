@@ -34,7 +34,7 @@ db = SQLAlchemy(model_class=Base)
 migrate = Migrate()
 jwt = JWTManager()
 mail = Mail()
-cors = CORS()
+
 
 # Initialize Flask-Limiter
 limiter = Limiter(
@@ -132,22 +132,19 @@ def create_app(config_class=Config):
     # Configure 
     # CORS(app)
 
-    cors.init_app(app, resources={
-        r"/*": {
-            "origins": [
-                "http://localhost:5173",  # Default React dev server
-                "http://localhost:5174",  # Default React dev server
-                "http://127.0.0.1:3000",  # Alternative local address
-                  # Alternative local address
-                 FRONTEND_URL_STUDENTS ,                      # Your future production frontend
-                 FRONTEND_URL_ADMIN
-            ],
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True,
-              # If using cookies/auth
-        }
-    })
+    CORS(app,
+        supports_credentials=True,
+        origins=[
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:3000",
+            FRONTEND_URL_STUDENTS,
+            FRONTEND_URL_ADMIN
+        ],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"]
+    )
+
     
     # Register blueprints
     from routes.auth_routes import auth_bp

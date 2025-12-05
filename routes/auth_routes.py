@@ -149,31 +149,23 @@ def register():
         # session.modified = True  # ADD THIS
         
         # Save temporarily in session
-        session.clear()  # Clear any old data first
+        # session.clear()  # Clear any old data first
         session.permanent = True
         session['pending_user'] = {
             'email': data['email'].lower(),
             'first_name': data['first_name'],
             'last_name': data['last_name'],
-    'password': data['password'],
-    'phone': data['phone'],
-    'bio': data.get('bio'),
-    'role': role.value
-}
+            'password': data['password'],
+            'phone': data['phone'],
+            'bio': data.get('bio'),
+            'role': role.value
+                }
         session.modified = True  # ADD THIS LINE
         _ = session['pending_user']  # Force serialization - ADD THIS LINE
 
         print(f"DEBUG: Saved to session: {session.get('pending_user')}")  # Verify
         
-        # session['pending_user'] = {
-        #     'email': data['email'].lower(),
-        #     'first_name': data['first_name'],
-        #     'last_name': data['last_name'],
-        #     'password': data['password'],
-        #     'phone': data['phone'],
-        #     'bio': data.get('bio'),
-        #     'role':role.value
-        # }
+        
         
         # Send OTP via Twilio
         # from services.sms_service import SmsService
