@@ -444,88 +444,105 @@ def get_current_user():
 
 
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 # Step 2: Function to verify Google ID token
 def verify_google_token(token):
-    """
-    Verifies the ID token received from frontend using Google's endpoint.
-    Returns user info (email, name, etc) if valid, else None.
-    """
     try:
-        response = requests.get(f'https://oauth2.googleapis.com/tokeninfo?id_token={token}')
+        response = requests.get(
+            f'https://oauth2.googleapis.com/tokeninfo?id_token={token}',
+            timeout=5  # Add timeout
+        )
+        
         if response.status_code != 200:
+            print(f"Google token verification failed: {response.text}")
             return None
+            
         user_info = response.json()
 
-        # Confirm token is issued for your app
-        if user_info['aud'] != Config.GOOGLE_CLIENT_ID:
+        # Check for required fields
+        if 'aud' not in user_info or 'email' not in user_info:
+            print("Missing required fields in token response")
+            return None
+
+        # Verify audience (use GOOGLE_CLIENT_ID directly)
+        if user_info['aud'] != GOOGLE_CLIENT_ID:
+            print(f"Token audience mismatch: {user_info['aud']}")
             return None
 
         return user_info
+        
+    except requests.exceptions.Timeout:
+        print("Google token verification timeout")
+        return None
     except Exception as e:
         print(f"Token verification error: {e}")
         return None
-
 
 
 # Step 3: Route to handle Google login
 @auth_bp.route('/google', methods=['POST'])
 @limiter.limit("20 per hour")
 def google_login():
-    data = request.get_json()
-    google_token = data.get("token")
+    try:
+        data = request.get_json()
+        google_token = data.get("token")
 
-    if not google_token:
-        return jsonify({"error": "Token is missing"}), 400
+        if not google_token:
+            return jsonify({"error": "Token is missing"}), 400
 
-    user_info = verify_google_token(google_token)
-    if not user_info:
-        return jsonify({"error": "Invalid token"}), 401
+        user_info = verify_google_token(google_token)
+        if not user_info:
+            return jsonify({"error": "Invalid token"}), 401
 
-    email = user_info.get("email")
-    google_id = user_info.get("sub")  # Google's user ID
-    
-    # ✅ Find or create user in YOUR database
-    user = User.query.filter_by(email=email).first()
-    # Determine the role based on the client type provided in the request
-    client_type = data.get("client_type")
-    
-    if client_type == "student":
-        user_role = UserRole.STUDENT
-    else:
-        user_role = UserRole.ADMIN
-    
-    # ✅ Find or create user in YOUR database
-    user = User.query.filter_by(email=email).first()
-    
-    if not user:
-        user = User(
-            email=email,
-            google_id=google_id,  # Optional: store Google ID for reference
-            first_name=user_info.get("given_name"),
-            last_name=user_info.get("family_name"),
-            profile_picture=user_info.get("picture"),
-            email_verified=user_info.get("email_verified", False),
-            role=user_role,
-            is_active=True
-        )
+        email = user_info.get("email")
+        google_id = user_info.get("sub")
         
-        db.session.add(user)
-        db.session.commit()
+        # Determine role BEFORE querying
+        client_type = data.get("client_type", "student")  # Default to student
+        user_role = UserRole.STUDENT if client_type == "student" else UserRole.ADMIN
+        
+        # Find or create user (SINGLE query)
+        user = User.query.filter_by(email=email).first()
+        
+        if not user:
+            user = User(
+                email=email,
+                first_name=user_info.get("given_name"),
+                last_name=user_info.get("family_name"),
+                profile_picture=user_info.get("picture"),
+                email_verified=user_info.get("email_verified", False),
+                role=user_role,
+                is_active=True
+            )
+            db.session.add(user)
+            db.session.commit()
+        else:
+            # Optional: Update existing user's info
+            user.profile_picture = user_info.get("picture")
+            user.email_verified = user_info.get("email_verified", False)
+            db.session.commit()
+        
+        # Create access token
+        access_token = create_access_token(
+            identity=str(user.id),  # Convert to string for JWT
+            additional_claims={
+                "email": email,
+                "name": user_info.get("name"),
+                "picture": user_info.get("picture")
+            }
+        )
+
+        return jsonify({
+            "access_token": access_token,
+            "user": user.to_dict()  # Include user data in response
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Google login error: {str(e)}")
+        return jsonify({"error": "Login failed"}), 500
+
     
-    # ✅ Use YOUR database's user ID
-    access_token = create_access_token(
-        identity=user.id,  # This is your DB's auto-incremented integer ID
-        additional_claims={
-            "email": email,
-            "name": user_info.get("name"),
-            "picture": user_info.get("picture")
-        }
-    )
-
-    return jsonify({"access_token": access_token}), 200
-
-
 @auth_bp.route('/send-token', methods=['POST'])
 @limiter.limit("3 per hour")
 def send_reset_token():
