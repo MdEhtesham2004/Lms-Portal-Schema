@@ -65,22 +65,31 @@ def create_app(config_class=Config):
     app.config['MAIL_PASSWORD'] =  os.environ.get("MAIL_PASSWORD")# APP Password only
     app.config['MAIL_DEFAULT_SENDER'] = os.environ.get("MAIL_DEFAULT_SENDER")
     
-    app.config['SESSION_COOKIE_SAMESITE'] = 'None'   # Required for cross-site
-    # app.config['SESSION_COOKIE_SAMESITE'] = 'lax'   # Required for cross-site
-    app.config['SESSION_COOKIE_SECURE'] = True     # Required on https
-    app.config['SESSION_COOKIE_HTTPONLY'] = True
-
-    # In your app configuration (app.py or config.py)
-    app.config['SECRET_KEY'] = 'your-secret-key-here'  # REQUIRED!
-    # app.config['SESSION_TYPE'] = 'filesystem'  # or 'redis', 'sqlalchemy'
-    app.config['SESSION_TYPE'] = 'redis'  # or 'redis', 'sqlalchemy'
-    # app.config['SESSION_REDIS'] = Redis.from_url('redis://localhost:6379')
-    app.config['SESSION_REDIS'] = Redis.from_url(os.environ.get("REDIS_URL"))
-
-    app.config['SESSION_PERMANENT'] = True
-    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)
-
-    # If using server-side sessions
+    # ============================================
+    # SERVER-SIDE SESSION WITH REDIS
+    # ============================================
+    app.config["SESSION_TYPE"] = "redis"
+    app.config["SESSION_REDIS"] = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
+    app.config["SESSION_PERMANENT"] = True
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=1)
+    app.config["SESSION_USE_SIGNER"] = True
+    app.config["SESSION_KEY_PREFIX"] = "flask_session:"
+    
+    # Session cookie settings for CORS
+    app.config["SESSION_COOKIE_NAME"] = "session"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    
+    # Environment-based cookie security
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+    
+    if is_production:
+        # Production with HTTPS: Use SameSite=None for cross-origin + Secure=True
+        app.config["SESSION_COOKIE_SAMESITE"] = "None"
+        app.config["SESSION_COOKIE_SECURE"] = True
+    else:
+        # Local development without HTTPS: Disable SameSite to allow cross-origin cookies
+        app.config["SESSION_COOKIE_SAMESITE"] = None  # Disables SameSite protection
+        app.config["SESSION_COOKIE_SECURE"] = False   # Allows HTTP
 
 
     

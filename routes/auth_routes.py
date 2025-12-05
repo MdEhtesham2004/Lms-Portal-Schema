@@ -1,10 +1,12 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, create_access_token, create_refresh_token, get_jwt_identity, get_jwt, set_access_cookies, set_refresh_cookies
 from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 import requests
 import os
-
+from datetime import datetime, timedelta, timezone
+from flask_session import Session
+from flask import session
 from app import db, limiter
 from models import User, UserRole, TokenBlacklist
 from utils.validators import validate_email, validate_password, verify_reset_token, generate_reset_token
@@ -113,7 +115,7 @@ def send_otp(phone):
     return otp_status
 
 @auth_bp.route('/register', methods=['POST'])
-@limiter.limit("5 per hour")
+# @limiter.limit("5 per hour")
 def register():
     try:
         data = request.get_json()
@@ -158,12 +160,20 @@ def register():
             'password': data['password'],
             'phone': data['phone'],
             'bio': data.get('bio'),
-            'role': role.value
-                }
+            'role': role.value,
+            'otp_expiry': (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        }
         session.modified = True  # ADD THIS LINE
         _ = session['pending_user']  # Force serialization - ADD THIS LINE
 
-        print(f"DEBUG: Saved to session: {session.get('pending_user')}")  # Verify
+        print("=" * 50)
+        print("REGISTER ROUTE - SESSION DEBUG")
+        print("=" * 50)
+        print(f"Session ID: {session.sid if hasattr(session, 'sid') else 'No SID'}")
+        print(f"Session keys: {list(session.keys())}")
+        print(f"Saved to session: {session.get('pending_user')}")
+        print(f"Session modified: {session.modified}")
+        print("=" * 50)
         
         
         
@@ -181,54 +191,47 @@ def register():
         return jsonify({
             'message': f'OTP sent to {data["phone"]}',
             'status': 'OTP_SENT',
-            'next': 'api/v1/auth/verify-otp'
+            'next': 'api/v1/auth/verify-otp',
+            'session-data': session.get('pending_user')
         }), 200
 
     except Exception as e:
         session.pop('pending_user', None)
         return jsonify({'error': str(e)}), 500
     
-@auth_bp.route('/resend-otp', methods=['POST'])
-@limiter.limit("3 per hour")
-def resend_otp():
-    try:
-        pending_user = session.get('pending_user')
-        if not pending_user:
-            return jsonify({'error': 'Session expired or no user data found'}), 400
-            
-        phone = pending_user.get('phone')
-        if not phone:
-            return jsonify({'error': 'Phone number not found in session'}), 400
-
-        otp_status = send_otp(phone=phone)
-
-        if otp_status != "pending":
-            # session.pop('pending_user', None)  # Optional: Decide if you want to clear session on failure
-            return jsonify({'error': 'Failed to send OTP'}), 500
-
-        return jsonify({
-            'message': f'OTP sent to {phone}',
-            'status': 'OTP_SENT'
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 
 @auth_bp.route('/verify-otp', methods=['POST'])
-@limiter.limit("10 per hour")
+# @limiter.limit("10 per hour")
 def verify_otp():
     try:
-        print("verify otp route hit--") 
+        print("=" * 50)
+        print("VERIFY OTP ROUTE HIT")
+        print("=" * 50)
+        
+        # Debug session information
+        print(f"Session ID: {session.sid if hasattr(session, 'sid') else 'No SID'}")
+        print(f"Session keys: {list(session.keys())}")
+        print(f"Session data: {dict(session)}")
+        print(f"Request cookies: {request.cookies}")
+        
         data = request.get_json()
         otp = data.get('otp')
         pending_user = session.get('pending_user')
-        print("pending user from session:", pending_user)
+        print(f"pending_user from session: {pending_user}")
+        print("=" * 50)
 
         if not pending_user:
             return jsonify({'error': 'Session expired or no user data found'}), 400
 
         phone = pending_user.get('phone')  # Now safe
+
+        # Check expiry
+        otp_expiry_str = pending_user.get('otp_expiry')
+        if otp_expiry_str:
+            otp_expiry = datetime.fromisoformat(otp_expiry_str)
+            if datetime.now(timezone.utc) > otp_expiry:
+                session.pop('pending_user', None)
+                return jsonify({'error': 'Session expired. Please register again.'}), 400
 
         
         if not phone or not otp:
@@ -284,6 +287,43 @@ def verify_otp():
         db.session.rollback()
         session.pop('pending_user', None)
         return jsonify({'error': str(e)}), 500
+
+
+@auth_bp.route('/resend-otp', methods=['POST'])
+@limiter.limit("3 per hour")
+def resend_otp():
+    try:
+        pending_user = session.get('pending_user')
+        if not pending_user:
+            return jsonify({'error': 'Session expired or no user data found'}), 400
+            
+        phone = pending_user.get('phone')
+        if not phone:
+            return jsonify({'error': 'Phone number not found in session'}), 400
+
+        # Check expiry
+        otp_expiry_str = pending_user.get('otp_expiry')
+        if otp_expiry_str:
+            otp_expiry = datetime.fromisoformat(otp_expiry_str)
+            if datetime.now(timezone.utc) > otp_expiry:
+                session.pop('pending_user', None)
+                return jsonify({'error': 'Session expired. Please register again.'}), 400
+
+        otp_status = send_otp(phone=phone)
+
+        if otp_status != "pending":
+            # session.pop('pending_user', None)  # Optional: Decide if you want to clear session on failure
+            return jsonify({'error': 'Failed to send OTP'}), 500
+
+        return jsonify({
+            'message': f'OTP sent to {phone}',
+            'status': 'OTP_SENT',
+            'session-data': session.get('pending_user')
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 
 
