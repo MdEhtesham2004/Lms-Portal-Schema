@@ -14,6 +14,8 @@ from utils.security import FailedLoginTracker, SecurityMonitor, IPBlocker
 from config import Config
 from services.email_service import EmailService
 from services.sms_service import SmsService
+import secrets
+from werkzeug.security import generate_password_hash
 
 
 
@@ -541,9 +543,13 @@ def google_login():
         # Find or create user
         user = User.query.filter_by(email=email).first()
         
+        is_new_user = False
         if not user:
+            print("registering the new user ...")
+            is_new_user = True
             user = User(
                 email=email,
+                google_id=google_id,
                 first_name=user_info.get("given_name"),
                 last_name=user_info.get("family_name"),
                 profile_picture=user_info.get("picture"),
@@ -551,14 +557,25 @@ def google_login():
                 role=user_role,
                 is_active=True
             )
+            # ✅ Set random unusable password BEFORE adding to session
+            random_password = secrets.token_urlsafe(32)
+            user.set_password(random_password)
+            
             db.session.add(user)
             db.session.commit()
+            
+            # Send welcome email for new users
+            try:
+                email_service.send_welcome_email(user)
+            except Exception as email_error:
+                print(f"Failed to send welcome email: {email_error}")
         else:
+            # Update existing user's profile picture and email verification status
             user.profile_picture = user_info.get("picture")
             user.email_verified = email_verified  # ✅ Boolean
             db.session.commit()
         
-        # Create access token
+        # Create access token and refresh token
         access_token = create_access_token(
             identity=str(user.id),
             additional_claims={
@@ -567,9 +584,13 @@ def google_login():
                 "picture": user_info.get("picture")
             }
         )
+        
+        refresh_token = create_refresh_token(identity=str(user.id))
 
         return jsonify({
+            "message": "Login successful" if not is_new_user else "Registration successful",
             "access_token": access_token,
+            "refresh_token": refresh_token,
             "user": user.to_dict()
         }), 200
         
@@ -577,6 +598,10 @@ def google_login():
         db.session.rollback()
         print(f"Google login error: {str(e)}")
         return jsonify({"error": "Login failed"}), 500    
+
+
+
+        
 @auth_bp.route('/send-token', methods=['POST'])
 @limiter.limit("3 per hour")
 def send_reset_token():
@@ -629,3 +654,29 @@ def reset_password():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# Let Google users set a password if they want
+@auth_bp.route('/set-password', methods=['POST'])
+@jwt_required()
+def set_password():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    if user.google_id is None:
+        return jsonify({"error": "This account is not a Google-linked account. Please use the password reset functionality if you forgot your password."}), 403
+    
+    data = request.get_json()
+    new_password = data.get("password")
+    
+    # Validate password
+    if len(new_password) < 8:
+        return jsonify({"error": "Password too short"}), 400
+    
+    user.set_password(new_password)
+    db.session.commit()
+    
+    return jsonify({"message": "Password set successfully"}), 200

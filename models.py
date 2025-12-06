@@ -36,6 +36,7 @@ class User(db.Model):
     email_verified = db.Column(db.Boolean, default=False)
     phone = db.Column(db.String(20))
     profile_picture = db.Column(db.String(255))
+    google_id = db.Column(db.String(255),nullable=True)
     bio = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
