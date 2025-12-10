@@ -234,3 +234,16 @@ class RazorpayPaymentService:
             # return self.client.misc.fetch_all_balances()
         except Exception as e:
             raise Exception(f"Razorpay error (get_balance): {str(e)}")
+
+
+
+
+    def get_payment_details(self, payment_id):
+        """
+        Fetches the complete payment object from Razorpay.
+        Contains 'method' (card, upi, etc.), 'email', 'contact', 'fee', 'tax', etc.
+        """
+        try:
+            return self.client.payment.fetch(payment_id)
+        except Exception as e:
+            raise Exception(f"Razorpay error (get_payment_details): {str(e)}")

@@ -40,6 +40,7 @@ class Config:
     
     # Rate limiting
     RATELIMIT_STORAGE_URL = os.environ.get('REDIS_URL', 'memory://')
+    REDIS_URL = os.environ.get('REDIS_URL', 'memory://')
     RATELIMIT_ENABLED = os.environ.get('RATELIMIT_ENABLED', 'true').lower() in ['true', 'on', '1']
     RATELIMIT_DEFAULT = os.environ.get('RATELIMIT_DEFAULT', '200 per day, 50 per hour')
     RATELIMIT_HEADERS_ENABLED = True

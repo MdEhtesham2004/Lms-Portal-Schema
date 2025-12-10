@@ -40,8 +40,12 @@ mail = Mail()
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",  # Will be updated in create_app
-    strategy="fixed-window"
+    # storage_uri="memory://",  # Will be updated in create_app
+    # storage_uri=None,  # Will be updated in create_app
+    storage_uri = Config.REDIS_URL,
+    strategy="fixed-window",
+    swallow_errors=True,  # Don't crash if Redis is down
+    headers_enabled=True  # Show rate limit headers for debugging
 )
 
 # Talisman will be initialized in create_app
@@ -97,9 +101,12 @@ def create_app(config_class=Config):
     
     # Initialize Flask-Limiter
     limiter.init_app(app)
+
     
     # Configure storage (Redis or memory)
     limiter._storage_uri = app.config['RATELIMIT_STORAGE_URL']
+    # Temporarily disable rate limiting to confirm
+    # limiter.enabled = False
     
     # Log configuration
     if app.config['RATELIMIT_ENABLED']:
@@ -111,47 +118,50 @@ def create_app(config_class=Config):
     
     
     # Initialize Talisman for security headers (only in production)
-    if app.config['SECURITY_HEADERS_ENABLED']:
-        global talisman
-        talisman = Talisman(
-            app,
-            force_https=app.config['FORCE_HTTPS'],
-            strict_transport_security=True,
-            strict_transport_security_max_age=31536000,  # 1 year
-            content_security_policy=app.config['CSP_POLICY'],
-            content_security_policy_nonce_in=['script-src'],
-            session_cookie_samesite='None',
-            session_cookie_secure=True,
-            referrer_policy='strict-origin-when-cross-origin',
-            feature_policy={
-                'geolocation': "'none'",
-                'microphone': "'none'",
-                'camera': "'none'"
-            }
-        )
-        app.logger.info("Security headers enabled via Talisman")
+    # Initialize Talisman for security headers (only in production)
+    # if app.config['SECURITY_HEADERS_ENABLED']:
+    #     global talisman
+    #     talisman = Talisman(
+    #         app,
+    #         force_https=app.config['FORCE_HTTPS'],
+    #         strict_transport_security=False,
+    #         strict_transport_security_max_age=31536000,  # 1 year
+    #         content_security_policy=app.config['CSP_POLICY'],
+    #         content_security_policy_nonce_in=['script-src'],
+    #         session_cookie_samesite='None',
+    #         session_cookie_secure=True,
+    #         referrer_policy='strict-origin-when-cross-origin',
+    #         permissions_policy={  # Renamed from feature_policy as per newer Flask-Talisman/specs
+    #             'geolocation': "'none'",
+    #             'microphone': "'none'",
+    #             'camera': "'none'"
+    #         }
+    #     )
+    #     app.logger.info("Security headers enabled via Talisman")
     
     # Initialize security middleware
     from utils.middleware import init_middleware
     init_middleware(app)
     
-    # Configure 
-    # CORS(app)
-
-    CORS(app,
-        supports_credentials=True,
-        origins=[
-            "http://localhost:5173",
-            "http://localhost:5174",
-            "http://127.0.0.1:3000",
-            "https://aim-admin-portal.vercel.app",  # Production frontend
-            FRONTEND_URL_STUDENTS,
-            FRONTEND_URL_ADMIN,
-            "https://aim-international.vercel.app"
-        ],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization"]
-    )
+    # Configure CORS
+    # NOTE: CORS is now handled by middleware (utils/middleware.py -> handle_cors_headers)
+    # This ensures proper handling of credentialed requests with specific origins
+    # instead of wildcards which are not allowed with credentials: 'include'
+    
+    # CORS(app,
+    #     supports_credentials=True,
+    #     origins=[
+    #         "http://localhost:5173",
+    #         "http://localhost:5174",
+    #         "http://127.0.0.1:3000",
+    #         "https://aim-admin-portal.vercel.app",  # Production frontend
+    #         FRONTEND_URL_STUDENTS,
+    #         FRONTEND_URL_ADMIN,
+    #         "https://aim-international.vercel.app"
+    #     ],
+    #     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    #     allow_headers=["Content-Type", "Authorization"]
+    # )
 
     
     # Register blueprints

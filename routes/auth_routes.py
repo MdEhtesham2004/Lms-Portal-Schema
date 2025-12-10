@@ -361,27 +361,60 @@ def login():
         # Find user
         user = User.query.filter_by(email=email).first()
         
-        if not user or not user.check_password(data['password']):
+        # Debug logging
+        if not user:
+            print(f"❌ LOGIN FAILED: User not found for email: {email}")
+            FailedLoginTracker.record_failed_attempt(email=email)
+            return jsonify({'error': 'Invalid email or password'}), 401
+        
+        print(f"✅ User found: {user.email} (ID: {user.id})")
+        print(f"   - Has password_hash: {bool(user.password_hash)}")
+        print(f"   - Has google_id: {bool(user.google_id)}")
+        print(f"   - Is active: {user.is_active}")
+        
+        # Check password
+        password_valid = user.check_password(data['password'])
+        print(f"   - Password check result: {password_valid}")
+        
+        if not password_valid:
+            print(f"❌ LOGIN FAILED: Invalid password for {email}")
             # Record failed attempt
             FailedLoginTracker.record_failed_attempt(email=email)
             return jsonify({'error': 'Invalid email or password'}), 401
         
         if not user.is_active:
+            print(f"❌ LOGIN FAILED: Account deactivated for {email}")
             return jsonify({'error': 'Account is deactivated'}), 401
         
         # Reset failed attempts on successful login
         FailedLoginTracker.reset_attempts(email=email)
         
-        # Create tokens
+        # Create tokens (both use string identity for consistency)
         access_token = create_access_token(identity=str(user.id))
-        refresh_token = create_refresh_token(identity=user.id)
+        refresh_token = create_refresh_token(identity=str(user.id))
         
-        return jsonify({
+        print(f"✅ LOGIN SUCCESSFUL for {email}")
+        
+        response = jsonify({
             'message': 'Login successful',
             'user': user.to_dict(),
             'access_token': access_token,
             'refresh_token': refresh_token
-        }), 200
+        })
+        
+        # Set tokens as HTTP-only cookies (same as register and Google login)
+        set_access_cookies(response, access_token)
+        set_refresh_cookies(response, refresh_token)
+        
+        # Debug: Show what cookies are being set
+        print("=" * 70)
+        print("LOGIN RESPONSE DEBUG")
+        print("=" * 70)
+        print(f"Response Headers: {dict(response.headers)}")
+        print(f"Set-Cookie headers: {response.headers.getlist('Set-Cookie')}")
+        print("=" * 70)
+        
+        return response, 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -468,7 +501,10 @@ def get_current_user():
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
-        
+
+        print("-"*70)
+        print("response : ", user.to_dict())
+        print("-"*70)
         return jsonify({'user': user.to_dict()}), 200
         
     except Exception as e:
@@ -547,11 +583,27 @@ def google_login():
         if not user:
             print("registering the new user ...")
             is_new_user = True
+            
+            # Extract name with fallbacks (Google might not always provide given_name/family_name)
+            given_name = user_info.get("given_name")
+            family_name = user_info.get("family_name")
+            full_name = user_info.get("name", "")
+            
+            # Fallback logic for first_name and last_name
+            if not given_name and not family_name:
+                # If neither is provided, split the full name or use email
+                name_parts = full_name.split() if full_name else email.split("@")[0].split(".")
+                first_name = name_parts[0] if len(name_parts) > 0 else "User"
+                last_name = name_parts[-1] if len(name_parts) > 1 else ""
+            else:
+                first_name = given_name or full_name.split()[0] if full_name else "User"
+                last_name = family_name or (full_name.split()[-1] if full_name and len(full_name.split()) > 1 else "")
+            
             user = User(
                 email=email,
                 google_id=google_id,
-                first_name=user_info.get("given_name"),
-                last_name=user_info.get("family_name"),
+                first_name=first_name,
+                last_name=last_name,
                 profile_picture=user_info.get("picture"),
                 email_verified=email_verified,  # ✅ Boolean
                 role=user_role,
@@ -587,12 +639,19 @@ def google_login():
         
         refresh_token = create_refresh_token(identity=str(user.id))
 
-        return jsonify({
+        # Create response with tokens in body
+        response = jsonify({
             "message": "Login successful" if not is_new_user else "Registration successful",
             "access_token": access_token,
             "refresh_token": refresh_token,
             "user": user.to_dict()
-        }), 200
+        })
+        
+        # Set tokens as HTTP-only cookies
+        set_access_cookies(response, access_token)
+        set_refresh_cookies(response, refresh_token)
+        
+        return response, 200
         
     except Exception as e:
         db.session.rollback()

@@ -32,33 +32,52 @@ def get_master_category(category_id):
 
 
 
-
-"""Get master Categories only"""
 @public_bp.route('/get-mastercategories', methods=['POST'])
-@limiter.limit("60 per minute")
 def get_master_categories_only():   
     try:
-        include_subcategories=request.args.get("subcategories")
+        include_subcategories = request.args.get("subcategories")
+        include_courses = request.args.get("courses")
         
+        # Normalize boolean flag
+        is_courses_requested = (include_courses == "true")
+
         categories = MasterCategory.query.all()
         count = len(categories)
         
-        categories = [
-            cat.to_dict(include_subcategories=include_subcategories)
-            if include_subcategories is not None else cat.to_dict()
-            for cat in categories
-        ]
+        # 1. Get the base dictionaries
+        categories_data = []
+        for cat in categories:
+            # Generate the dictionary based on flags
+            cat_dict = cat.to_dict(
+                include_subcategories=include_subcategories,
+                include_courses=is_courses_requested
+            ) if include_subcategories else cat.to_dict()
+
+            # 2. If courses are requested, filter their keys specifically
+            if is_courses_requested and 'subcategories' in cat_dict:
+                for sub in cat_dict['subcategories']:
+                    if 'courses' in sub:
+                        # FILTER LOGIC: Keep only specific keys
+                        allowed_keys = {
+                            'id', 'title', 'short_description', 
+                            'duration_hours', 'price', 'thumbnail'
+                        }
+                        
+                        sub['courses'] = [
+                            {k: course[k] for k in allowed_keys if k in course}
+                            for course in sub['courses']
+                        ]
+            
+            categories_data.append(cat_dict)
 
         return jsonify({
             "message": "Master categories fetched successfully",
             "count": count,
-            "categories": categories
+            "categories": categories_data
         }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
 
 
 # ✅ GET all subcategories
@@ -86,42 +105,62 @@ def get_subcategory(subcategory_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 400
     
-
-
-
-# get specific course
-""" get a specific course   """
 @public_bp.route('/get-courses/<int:course_id>', methods=['POST'])
 @limiter.limit("60 per minute")
 def get_course(course_id):
     try:
         course = Course.query.get(course_id)
-        include_lessons = request.args.get("lessons", "false").lower() == "true"  # parse bool safely
-        include_resources = request.args.get("resources", "false").lower() == "true"
-
         if not course:
             return jsonify({'error': 'Course not found'}), 404
-        
-        # Check if user is enrolled (if authenticated)
+
+        # Parse query params
+        include_lessons = request.args.get("lessons", "false").lower() == "true"
+        include_resources = request.args.get("resources", "false").lower() == "true"
+        limited_resources = request.args.get("limited_resources", "false").lower() == "true"
+
+        # Check enrollment
         user = get_current_user()
         is_enrolled = False
-        
         if user:
             enrollment = Enrollment.query.filter_by(
-                user_id=user.id, 
-                course_id=course_id, 
-                is_active=True
+                user_id=user.id, course_id=course_id, is_active=True
             ).first()
             is_enrolled = enrollment is not None
         
-        course_data = course.to_dict(include_modules=True,include_lessons=include_lessons,include_resources=include_resources)
-        # Remove video_url from all lessons if not enrolled, unless it's a preview
+        # Convert to dictionary
+        # We must request resources initially to extract the first one
+        should_fetch_resources = include_resources or limited_resources
+        
+        course_data = course.to_dict(
+            include_modules=True, 
+            include_lessons=include_lessons, 
+            include_resources=should_fetch_resources
+        )
+        
         modules = course_data.get('modules', [])
+        
+        # --- LOGIC: Extract First Resource ---
+        if limited_resources and modules:
+            first_module = modules[0]
+            lessons = first_module.get('lessons', [])
+            if lessons:
+                first_lesson = lessons[0]
+                resources = first_lesson.get('resources', [])
+                if resources:
+                    # Add specific first resource to root
+                    course_data['first_lesson_resource'] = resources[0]
 
+        # --- LOGIC: Clean up Data ---
         for module in modules:
-            lessons = module.get('lessons', [])
-            for lesson in lessons:
-                lesson.pop('video_url', None)
+            for lesson in module.get('lessons', []):
+                # 1. Remove video_url if not enrolled
+                if not is_enrolled:
+                    lesson.pop('video_url', None)
+                
+                # 2. If limited_resources is ON, remove the 'resources' list from lessons
+                #    (so we don't send the full list, just the one we extracted above)
+                if limited_resources:
+                     lesson.pop('resources', None)
 
         course_data['is_enrolled'] = is_enrolled
         
@@ -200,3 +239,4 @@ def test_session():
     session['pending_user'] = session.get('pending_user')
     return jsonify(session.get('pending_user'), session.get('Test'))
 
+ 

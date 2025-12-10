@@ -175,14 +175,31 @@ def verify_payment():
         payment.signature = razorpay_signature
         payment.status = PaymentStatus.COMPLETED
 
+        
         # Enroll user
         enrollment = Enrollment(user_id=payment.user_id, course_id=payment.course_id)
         db.session.add(enrollment)
 
         db.session.commit()
 
-        invoice = razorpay_service.create_invoice(user=payment.user, course=payment.course, payment=payment)
 
+        razorpay_payment_details = razorpay_service.get_payment_details(razorpay_payment_id)        
+        payment_method = razorpay_payment_details.get('method') # 'card', 'upi', 'netbanking', 'wallet'
+        payment_email = razorpay_payment_details.get('email')
+
+        invoice_summary = {
+            "invoice_number": f"INV-{razorpay_payment_id}", # Or use Razorpay's invoice_id if you generated one
+            "payment_method": payment_method,
+            "amount_paid": razorpay_payment_details.get('amount'),
+            "currency": razorpay_payment_details.get('currency'),
+            "date": payment.created_at.isoformat(),
+            "transaction_id": razorpay_payment_id
+        }
+
+        
+        invoice = razorpay_service.create_invoice(user=payment.user, course=payment.course, payment=payment)
+        invoice['summary'] = invoice_summary
+        
 
         return jsonify({
             "status": "Payment verified",
@@ -516,3 +533,7 @@ def request_refund(payment_id):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@payment_bp.route("/get-payment-test/<id>")
+def get_payment_test(id):
+    return razorpay_service.get_payment_details(id)

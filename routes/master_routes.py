@@ -47,12 +47,18 @@ def create_only_master_category():
 def get_master_categories_only():   
     try:
         include_subcategories=request.args.get("subcategories")
+        include_courses=request.args.get("courses")
         
+        if include_courses is not None and include_courses == "true":
+            include_courses=True
+        else:
+            include_courses=False
+
         categories = MasterCategory.query.all()
         count = len(categories)
         
         categories = [
-            cat.to_dict(include_subcategories=include_subcategories)
+            cat.to_dict(include_subcategories=include_subcategories,include_courses=include_courses)
             if include_subcategories is not None else cat.to_dict()
             for cat in categories
         ]
@@ -60,7 +66,7 @@ def get_master_categories_only():
         return jsonify({
             "message": "Master categories fetched successfully",
             "count": count,
-            "categories": categories
+            "mastercategories":categories
         }), 200
 
     except Exception as e:
