@@ -23,32 +23,56 @@ def get_live_sessions():
         course_id = request.args.get('course_id', type=int)
         upcoming_only = request.args.get('upcoming_only', 'false').lower() == 'true'
         
-        # Build query based on user role
+        # Base query
+        query = LiveSession.query
+        
+        # 1. Permission & Scope Filter
         if user.role == UserRole.ADMIN:
-            query = LiveSession.query
+            # Admins see all; no base filter needed unless course_id is specified
+            pass
+            
         elif user.role == UserRole.INSTRUCTOR:
-            # Instructors can see sessions for their courses
-            course_ids = [course.id for course in user.courses_taught]
-            query = LiveSession.query.filter(LiveSession.course_id.in_(course_ids))
-        else:
-            # Students can see sessions for courses they're enrolled in
-            enrolled_course_ids = [enrollment.course_id for enrollment in user.enrollments if enrollment.is_active]
-            query = LiveSession.query.filter(LiveSession.course_id.in_(enrolled_course_ids))
+            # Instructors see sessions for courses they TEACH
+            # Optimized: JOIN directly instead of fetching IDs to python list
+            query = query.join(Course).filter(Course.instructor_id == user.id)
+            
+        else: # STUDENT
+            # Students see sessions for courses they are ENROLLED in
+            # Optimized: Join with Enrollment table to filter active enrollments in one query
+            # Assumes 'Enrollment' model exists with 'course_id', 'user_id', 'is_active'
+            query = query.join(Enrollment, LiveSession.course_id == Enrollment.course_id)\
+                         .filter(
+                             Enrollment.user_id == user.id,
+                             Enrollment.is_active == True
+                         )
         
+        # 2. Specific Course Filter (Refines the scope above)
         if course_id:
-            query = query.filter_by(course_id=course_id)
+            # Security Check: If Student/Instructor, ensure they actually belong to this course_id
+            # The JOINs above naturally handle this (the query will return empty if they aren't linked),
+            # but adding the explicit filter refines the result.
+            query = query.filter(LiveSession.course_id == course_id)
         
+        # 3. Time Filter
         if upcoming_only:
             query = query.filter(LiveSession.scheduled_at > datetime.utcnow())
         
-        sessions = query.order_by(LiveSession.scheduled_at.asc()).paginate(
-            page=page, per_page=per_page, error_out=False
-        )
+        # 4. Execute with Pagination
+        # eager load 'course' relationship to prevent N+1 queries during serialization
+        sessions = query.options(db.joinedload(LiveSession.course))\
+                        .order_by(LiveSession.scheduled_at.asc())\
+                        .paginate(page=page, per_page=per_page, error_out=False)
         
         session_data = []
         for session in sessions.items:
             session_dict = session.to_dict()
-            session_dict['course'] = session.course.to_dict()
+            # If using joinedload, session.course is already in memory (fast)
+            if session.course:
+                session_dict['course'] = {
+                    'id': session.course.id,
+                    'title': session.course.title,
+                    'thumbnail': session.course.thumbnail
+                }
             session_data.append(session_dict)
         
         return jsonify({
@@ -64,7 +88,9 @@ def get_live_sessions():
         }), 200
         
     except Exception as e:
+        print(f"Error fetching live sessions: {str(e)}") # Debug log
         return jsonify({'error': str(e)}), 500
+
 
 # create live sessions
 """  Create live sessions and demo here       """ 

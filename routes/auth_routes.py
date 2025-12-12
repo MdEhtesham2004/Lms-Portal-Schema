@@ -547,7 +547,7 @@ def verify_google_token(token):
     except Exception as e:
         print(f"Token verification error: {e}")
         return None
-
+    
 @auth_bp.route('/google', methods=['POST'])
 @limiter.limit("20 per hour")
 def google_login():
@@ -565,100 +565,100 @@ def google_login():
         email = user_info.get("email")
         google_id = user_info.get("sub")
         
-        # Convert email_verified to boolean
-        email_verified_value = user_info.get("email_verified", False)
-        if isinstance(email_verified_value, str):
-            email_verified = email_verified_value.lower() == "true"
-        else:
-            email_verified = bool(email_verified_value)
-        
-        # Determine role BEFORE querying
+        # 1. Determine Role for POTENTIAL New User
+        # Default to 'student' if client_type is missing
         client_type = data.get("client_type", "student")
-        user_role = UserRole.STUDENT if client_type == "student" else UserRole.ADMIN
         
-        # Find or create user
+        # Logic: If 'admin' is sent, prepare Admin role. Otherwise, Student.
+        new_user_role = UserRole.ADMIN if client_type == "admin" else UserRole.STUDENT
+
+        # 2. Check if User Exists
         user = User.query.filter_by(email=email).first()
-        
         is_new_user = False
+
         if not user:
-            print("registering the new user ...")
+            # === SCENARIO A: NEW USER (Register) ===
+            print(f"Registering new user: {email} as {new_user_role}")
             is_new_user = True
             
-            # Extract name with fallbacks (Google might not always provide given_name/family_name)
+            # Extract name info
             given_name = user_info.get("given_name")
             family_name = user_info.get("family_name")
             full_name = user_info.get("name", "")
             
-            # Fallback logic for first_name and last_name
+            # Name fallback logic
             if not given_name and not family_name:
-                # If neither is provided, split the full name or use email
                 name_parts = full_name.split() if full_name else email.split("@")[0].split(".")
                 first_name = name_parts[0] if len(name_parts) > 0 else "User"
                 last_name = name_parts[-1] if len(name_parts) > 1 else ""
             else:
-                first_name = given_name or full_name.split()[0] if full_name else "User"
+                first_name = given_name or (full_name.split()[0] if full_name else "User")
                 last_name = family_name or (full_name.split()[-1] if full_name and len(full_name.split()) > 1 else "")
-            
+
+            # Create User with the DETERMINED ROLE
             user = User(
                 email=email,
                 google_id=google_id,
                 first_name=first_name,
                 last_name=last_name,
                 profile_picture=user_info.get("picture"),
-                email_verified=email_verified,  # ✅ Boolean
-                role=user_role,
+                email_verified=True, 
+                role=new_user_role,  # <--- APPLIES ONLY HERE
                 is_active=True
             )
-            # ✅ Set random unusable password BEFORE adding to session
+            
             random_password = secrets.token_urlsafe(32)
             user.set_password(random_password)
             
             db.session.add(user)
             db.session.commit()
             
-            # Send welcome email for new users
             try:
                 email_service.send_welcome_email(user)
-            except Exception as email_error:
-                print(f"Failed to send welcome email: {email_error}")
+            except Exception as e:
+                print(f"Welcome email failed: {e}")
+
         else:
-            # Update existing user's profile picture and email verification status
+            # === SCENARIO B: EXISTING USER (Login Directly) ===
+            print(f"Logging in existing user: {email} (Current Role: {user.role})")
+            
+            # NOTE: We do NOT update the role here. 
+            # If they registered as Student previously, they stay Student 
+            # even if they send client_type='admin' now.
+            
+            # Update profile info only
             user.profile_picture = user_info.get("picture")
-            user.email_verified = email_verified  # ✅ Boolean
+            user.email_verified = True
             db.session.commit()
-        
-        # Create access token and refresh token
+
+        # 3. Generate Tokens
         access_token = create_access_token(
             identity=str(user.id),
             additional_claims={
                 "email": email,
-                "name": user_info.get("name"),
-                "picture": user_info.get("picture")
+                "name": f"{user.first_name} {user.last_name}",
+                "role": str(user.role), # Add role to token for frontend checks
+                "picture": user.profile_picture
             }
         )
-        
         refresh_token = create_refresh_token(identity=str(user.id))
 
-        # Create response with tokens in body
         response = jsonify({
-            "message": "Login successful" if not is_new_user else "Registration successful",
+            "message": "Registration successful" if is_new_user else "Login successful",
             "access_token": access_token,
             "refresh_token": refresh_token,
             "user": user.to_dict()
         })
         
-        # Set tokens as HTTP-only cookies
         set_access_cookies(response, access_token)
         set_refresh_cookies(response, refresh_token)
         
         return response, 200
-        
+
     except Exception as e:
         db.session.rollback()
         print(f"Google login error: {str(e)}")
-        return jsonify({"error": "Login failed"}), 500    
-
-
+        return jsonify({"error": "Login failed"}), 500
 
         
 @auth_bp.route('/send-token', methods=['POST'])

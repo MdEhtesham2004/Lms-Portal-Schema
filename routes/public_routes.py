@@ -38,11 +38,38 @@ def get_master_categories_only():
         include_subcategories = request.args.get("subcategories")
         include_courses = request.args.get("courses")
         
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', '10')
+
         # Normalize boolean flag
         is_courses_requested = (include_courses == "true")
 
-        categories = MasterCategory.query.all()
-        count = len(categories)
+        query = MasterCategory.query
+
+        if per_page == 'all':
+            categories = query.all()
+            total_items = len(categories)
+            pagination_meta = {
+                "page": 1,
+                "per_page": "all",
+                "total_pages": 1,
+                "total_items": total_items,
+                "has_next": False,
+                "has_prev": False
+            }
+        else:
+            per_page = int(per_page)
+            pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+            categories = pagination.items
+            pagination_meta = {
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "total_pages": pagination.pages,
+                "total_items": pagination.total,
+                "has_next": pagination.has_next,
+                "has_prev": pagination.has_prev
+            }
+
         
         # 1. Get the base dictionaries
         categories_data = []
@@ -72,14 +99,16 @@ def get_master_categories_only():
 
         return jsonify({
             "message": "Master categories fetched successfully",
-            "count": count,
-            "categories": categories_data
+            "count": len(categories_data),
+            "categories": categories_data,
+            "pagination": pagination_meta
         }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
+    
 # ✅ GET all subcategories
 """Get All Subcategories with courses"""
 @public_bp.route("/get-subcategories", methods=["POST"])
@@ -87,8 +116,41 @@ def get_master_categories_only():
 def get_all_subcategories():
     try:
         include_courses=request.args.get("courses")
-        subcategories = SubCategory.query.all()
-        return jsonify([sub.to_dict(include_courses=True)  if include_courses is not None else sub.to_dict() for sub in subcategories]), 200
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', '10')
+
+        query = SubCategory.query
+
+        if per_page == 'all':
+            subcategories = query.all()
+            pagination_meta = {
+                "page": 1,
+                "per_page": "all",
+                "total_pages": 1,
+                "total_items": len(subcategories),
+                "has_next": False,
+                "has_prev": False
+            }
+        else:
+            per_page = int(per_page)
+            pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+            subcategories = pagination.items
+            pagination_meta = {
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "total_pages": pagination.pages,
+                "total_items": pagination.total,
+                "has_next": pagination.has_next,
+                "has_prev": pagination.has_prev
+            }
+
+        data = [sub.to_dict(include_courses=True) if include_courses is not None else sub.to_dict() for sub in subcategories]
+
+        return jsonify({
+            "subcategories": data,
+            "pagination": pagination_meta
+        }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
     

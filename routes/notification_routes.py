@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app import db
-from models import Notification, User
+from models import Notification, User,Course,Enrollment,UserRole
 from auth import get_current_user, admin_required
 from services.email_service import EmailService
 
@@ -323,3 +323,84 @@ def test_notification():
     return {
         "status":response
     }
+
+
+
+@notification_bp.route('/send/course', methods=['POST'])
+# @admin_required
+def send_course_notification():
+    try:
+        data = request.get_json()
+        
+        # 1. Validate required fields
+        # Note: 'user_ids' is replaced by 'course_id' requirement
+        required_fields = ['course_id', 'title', 'message']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'{field} is required'}), 400
+        
+        course_id = data['course_id']
+        title = data['title']
+        message = data['message']
+        notification_type = data.get('type', 'course_update') # Default type specific to courses
+        send_email = data.get('send_email', False)
+
+        # 2. Validate Course Existence
+        course = Course.query.get(course_id)
+        if not course:
+            return jsonify({'error': 'Course not found'}), 404
+
+        # 3. Fetch Enrolled Users
+        # This assumes an Enrollment model linking User and Course
+        # Adjust 'Enrollment' to your specific table name (e.g., CourseStudent, Subscription)
+        users = User.query.join(Enrollment).filter(
+            Enrollment.course_id == course_id,
+            Enrollment.is_active == True,  # Optional: only active students
+            User.is_active == True
+        ).all()
+
+        # Alternative: if you have a relationship on the Course model
+        # users = course.students 
+
+        if not users:
+            return jsonify({'error': 'No active students found for this course'}), 400
+
+        # 4. Process Notifications (Reusing your reference logic)
+        notifications_created = []
+        email_service = EmailService() if send_email else None
+        email_errors = []
+
+        for user in users:
+            # Create DB Notification
+            notification = Notification(
+                user_id=user.id,
+                title=title,
+                message=message,
+                type=notification_type
+            )
+            db.session.add(notification)
+            notifications_created.append(notification)
+            
+            # Send Email
+            if send_email and email_service:
+                try:
+                    # You might want to customize the email subject to include Course Name
+                    email_subject = f"[{course.title}] {title}"
+                    email_service.send_notification_email(user, email_subject, message)
+                except Exception as e:
+                    email_errors.append(f"{user.email}: {str(e)}")
+                    print(f"Failed to send email to {user.email}: {str(e)}")
+
+        db.session.commit()
+
+        return jsonify({
+            'message': f'Notifications sent to {len(notifications_created)} students',
+            'course': course.title,
+            'notifications_sent': len(notifications_created),
+            'email_sent': send_email,
+            'email_errors': len(email_errors) if send_email else 0
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
