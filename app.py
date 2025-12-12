@@ -119,27 +119,27 @@ def create_app(config_class=Config):
     
     # Initialize Talisman for security headers (only in production)
     # Initialize Talisman for security headers (only in production)
-    # if app.config['SECURITY_HEADERS_ENABLED']:
-    #     global talisman
-    #     talisman = Talisman(
-    #         app,
-    #         force_https=app.config['FORCE_HTTPS'],
-    #         strict_transport_security=False,
-    #         strict_transport_security_max_age=31536000,  # 1 year
-    #         content_security_policy=app.config['CSP_POLICY'],
-    #         content_security_policy_nonce_in=['script-src'],
-    #         session_cookie_samesite='None',
-    #         session_cookie_secure=True,
-    #         referrer_policy='strict-origin-when-cross-origin',
-    #         permissions_policy={  # Renamed from feature_policy as per newer Flask-Talisman/specs
-    #             'geolocation': "'none'",
-    #             'microphone': "'none'",
-    #             'camera': "'none'"
-    #         }
-    #     )
-    #     app.logger.info("Security headers enabled via Talisman")
+    if app.config['SECURITY_HEADERS_ENABLED']:
+        global talisman
+        talisman = Talisman(
+            app,
+            force_https=app.config['FORCE_HTTPS'],
+            strict_transport_security=False,
+            strict_transport_security_max_age=31536000,  # 1 year
+            content_security_policy=app.config['CSP_POLICY'],
+            content_security_policy_nonce_in=['script-src'],
+            session_cookie_samesite='None',
+            session_cookie_secure=True,
+            referrer_policy='strict-origin-when-cross-origin',
+            permissions_policy={  # Renamed from feature_policy as per newer Flask-Talisman/specs
+                'geolocation': "'none'",
+                'microphone': "'none'",
+                'camera': "'none'"
+            }
+        )
+        app.logger.info("Security headers enabled via Talisman")
     
-    # Initialize security middleware
+       # Initialize security middleware
     from utils.middleware import init_middleware
     init_middleware(app)
     

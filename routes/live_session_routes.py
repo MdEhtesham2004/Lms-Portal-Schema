@@ -270,6 +270,7 @@ def update_live_session(session_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
     
+    
 # delete session
 """ Delete perticular session """
 @live_session_bp.route('/delete-live-sessions/<int:session_id>', methods=['DELETE'])
