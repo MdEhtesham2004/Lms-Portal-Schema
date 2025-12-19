@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask
+from flask import Flask,jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -17,6 +17,7 @@ from flask_session import Session
 from datetime import timedelta
 from redis import Redis
 from flask import request
+import requests
 
 load_dotenv()
 
@@ -276,5 +277,34 @@ def create_app(config_class=Config):
             }
         }
     
+    GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+    PLACE_ID = os.environ.get("PLACE_ID")
+    WEBSITE_URL = "https://aim-international.vercel.app/"  # change if needed
+
+    @app.route("/api/google-reviews", methods=["POST"])
+    def google_reviews():
+        url = "https://maps.googleapis.com/maps/api/place/details/json"
+        params = {
+            "place_id": PLACE_ID,
+            "fields": "name,rating",
+            "key": GOOGLE_API_KEY
+        }
+
+        response = requests.get(
+            url,
+            params=params,
+            headers={
+                "Referer": WEBSITE_URL
+            },
+            timeout=10
+        )
+
+        data = response.json()
+
+        # reviews = data.get("result", {}).get("reviews", [])
+        # return jsonify(reviews)
+        return jsonify(data)
+
+        
     return app
 

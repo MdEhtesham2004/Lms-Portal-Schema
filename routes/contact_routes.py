@@ -9,7 +9,7 @@ contact_bp = Blueprint('contact_routes', __name__)
 @contact_bp.route('/contact-forms', methods=['POST'])
 def create_contact_form():
     data = request.get_json()
-    if not data or not all(key in data for key in ['name', 'email', 'message']):
+    if not data or not all(key in data for key in ['name', 'email']):
         return jsonify({'error': 'Missing data'}), 400
 
     new_form = ContactForm(
