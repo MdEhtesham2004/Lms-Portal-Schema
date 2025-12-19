@@ -11,7 +11,7 @@ def create_contact_form():
     data = request.get_json()
     if not data or not all(key in data for key in ['name', 'email']):
         return jsonify({'error': 'Missing data'}), 400
-
+    
     new_form = ContactForm(
         name=data['name'],
         email=data['email'],

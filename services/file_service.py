@@ -53,6 +53,7 @@ class FileService:
                 relative_path = unique_filename
             
             # Save the file
+            print(f"DEBUG: Saving file. UPLOAD_FOLDER={self.upload_folder}, Target={file_path}")
             file.save(file_path)
             
             # Get file size
@@ -61,6 +62,7 @@ class FileService:
             return relative_path, file_size
             
         except Exception as e:
+            print(f"DEBUG: File save error: {str(e)}")
             raise Exception(f"File save error: {str(e)}")
     
     def delete_file(self, file_path):
@@ -99,7 +101,10 @@ class FileService:
             else:
                 full_path = file_path
 
+            print(f"DEBUG: Sending file. UPLOAD_FOLDER={self.upload_folder}, FullPath={full_path}")
+            
             if not os.path.exists(full_path):
+                print(f"DEBUG: File NOT FOUND at {full_path}")
                 abort(404, "File not found")
             
             # Determine MIME type
@@ -113,6 +118,7 @@ class FileService:
             )
             
         except Exception as e:
+            print(f"DEBUG: Send file error: {str(e)}")
             abort(500, f"Error serving file: {str(e)}")
     
     def get_file_info(self, file_path):

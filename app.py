@@ -305,6 +305,20 @@ def create_app(config_class=Config):
         # return jsonify(reviews)
         return jsonify(data)
 
-        
+    # Route to serve files from the absolute path (Render Disk)
+    from flask import send_from_directory
+    @app.route('/uploads/<path:filename>')
+    def serve_uploads(filename):
+        # Use simple string replacement to handle potential double-slashes or mismatches
+        # between URL and config, but primarily trust UPLOAD_FOLDER
+        upload_folder = app.config.get('UPLOAD_FOLDER', '/static/uploads')
+        print(f"DEBUG: Serving URL {filename} from {upload_folder}") # Add debug logging here too
+        return send_from_directory(upload_folder, filename)
+
+    # Print all rules to confirm route registration
+    print("DEBUG: Registered Routes:")
+    for rule in app.url_map.iter_rules():
+        print(f"{rule} -> {rule.endpoint}")
+
     return app
 
