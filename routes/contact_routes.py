@@ -2,7 +2,7 @@
 from flask import Blueprint, request, jsonify
 from models import ContactForm 
 from app import db
-
+import requests
 
 contact_bp = Blueprint('contact_routes', __name__)
 
