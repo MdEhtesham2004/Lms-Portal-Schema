@@ -295,3 +295,10 @@ def delete_resource(resource_id):
         return jsonify({'error': str(e)}), 500
 
 
+
+
+
+@file_bp.route("/test-route", methods=['GET'])
+def test_route():
+    file_service = FileService()
+    return file_service.send_file("thumbnails/0bc71c2f126146b4a52d382867c80139_8a78a957e34547f5968b1a8a0585b4ba_thumbnail.jpg")

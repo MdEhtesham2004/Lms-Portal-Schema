@@ -9,15 +9,15 @@ contact_bp = Blueprint('contact_routes', __name__)
 @contact_bp.route('/contact-forms', methods=['POST'])
 def create_contact_form():
     data = request.get_json()
-    if not data or not all(key in data for key in ['name', 'email']):
+    if not data or not all(key in data for key in ['name', 'email','phone_number']):
         return jsonify({'error': 'Missing data'}), 400
     
     new_form = ContactForm(
         name=data['name'],
         email=data['email'],
-        message=data['message'],
-        phone_number=data.get('phone_number'),  # Optional field
-        course_interest=data.get('course_interest')
+        phone_number=data.get('phone_number'),  
+        message=data['message'] if data.get('message') else None,
+        course_interest=data.get('course_interest') if data.get('course_interest') else None
     )
     db.session.add(new_form)
     db.session.commit()
@@ -37,7 +37,7 @@ def get_contact_form(form_id):
 def update_contact_form(form_id):
     form = ContactForm.query.get_or_404(form_id)
     data = request.get_json()
-
+    
     if 'name' in data:
         form.name = data['name']
     if 'email' in data:
