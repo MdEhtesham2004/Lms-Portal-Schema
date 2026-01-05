@@ -1,4 +1,4 @@
-# Aim Technologies - Backend API Platform
+# Comprehensive (learning platform)- Backend API Platform
 
 A comprehensive RESTful API powering an online Learning Management System (LMS) with advanced security, payment processing, and certification capabilities.
 
@@ -26,7 +26,7 @@ A comprehensive RESTful API powering an online Learning Management System (LMS) 
 
 ## 🎯 Overview
 
-Aim Technologies Backend API is a production-ready learning management system supporting three user roles (Students, Instructors, and Administrators) with enterprise-grade features:
+Comprehensive  Backend API is a production-ready learning management system supporting three user roles (Students, Instructors, and Administrators) with enterprise-grade features:
 
 - **Advanced Authentication**: OTP-based registration, JWT tokens, Google OAuth 2.0
 - **Security First**: Rate limiting, brute-force protection, IP blocking, input validation
